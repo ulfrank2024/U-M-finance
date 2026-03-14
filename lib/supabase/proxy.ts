@@ -25,15 +25,22 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-
   const publicPaths = ['/login', '/register', '/auth/callback', '/forgot-password', '/reset-password']
   const isPublicPath = publicPaths.some(p => request.nextUrl.pathname.startsWith(p))
 
-  if (!user && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+  // Ne pas rediriger les paths publics
+  if (isPublicPath) return supabaseResponse
+
+  // Vérifier la session — en cas d'erreur réseau, laisser passer
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (!user && !error) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+  } catch {
+    // Erreur réseau → on laisse passer pour éviter la boucle
   }
 
   return supabaseResponse
