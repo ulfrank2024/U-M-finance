@@ -31,10 +31,18 @@ export async function updateSession(request: NextRequest) {
   // Ne pas rediriger les paths publics
   if (isPublicPath) return supabaseResponse
 
+  // Vérifier si un cookie de session Supabase existe
+  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'))
+  if (!hasAuthCookie) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
   // Vérifier la session — en cas d'erreur réseau, laisser passer
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (!user && !error) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
