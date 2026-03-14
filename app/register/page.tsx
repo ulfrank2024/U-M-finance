@@ -14,7 +14,7 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (form.password !== form.confirm) { setError('Les mots de passe ne correspondent pas'); return }
-    if (form.password.length < 6) { setError('Mot de passe trop court (min. 6 caractères)'); return }
+    if (form.password.length < 8) { setError('Mot de passe trop court (min. 8 caractères)'); return }
     setLoading(true)
     setError('')
     const supabase = createClient()
@@ -64,11 +64,11 @@ export default function RegisterPage() {
             </div>
             <div>
               <label className="text-xs text-[#a1a1aa] mb-1 block">Mot de passe</label>
-              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="••••••••" required />
+              <input type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min. 8 caractères" required />
             </div>
             <div>
               <label className="text-xs text-[#a1a1aa] mb-1 block">Confirmer</label>
-              <input type="password" value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} placeholder="••••••••" required />
+              <input type="password" value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} placeholder="Min. 8 caractères" required />
             </div>
             {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
             <button
