@@ -14,10 +14,20 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Tous les profils
+  // Seulement les profils ayant au moins une transaction, + le profil courant
+  const { data: activeUserRows } = await admin
+    .from('transactions')
+    .select('user_id')
+
+  const activeIds = [...new Set([
+    user.id,
+    ...(activeUserRows || []).map((r: { user_id: string }) => r.user_id),
+  ])]
+
   const { data: profiles } = await admin
     .from('profiles')
     .select('id, display_name, email, avatar_color')
+    .in('id', activeIds)
 
   // Filtre de date
   let dateFilter: { start?: string; end?: string } = {}
