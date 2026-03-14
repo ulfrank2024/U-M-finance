@@ -74,14 +74,14 @@ export default function DashboardPage() {
       )}
 
       {/* Comptes bancaires */}
-      {(bankAccounts || []).length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-[#fafafa]">Comptes bancaires</h2>
-            <Link href="/accounts" className="text-xs text-[#e879f9]">Gérer</Link>
-          </div>
+      {(bankAccounts || []).length > 0 && (() => {
+        const myAccounts      = (bankAccounts || []).filter(a => !a.is_shared && (a.owner_id === profile?.id || a.owner_id === null))
+        const partnerAccounts = (bankAccounts || []).filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== profile?.id)
+        const sharedAccounts  = (bankAccounts || []).filter(a => a.is_shared)
+
+        const AccountGrid = ({ items }: { items: BankAccount[] }) => (
           <div className="grid grid-cols-2 gap-2">
-            {(bankAccounts || []).map(acc => (
+            {items.map(acc => (
               <div key={acc.id} className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${acc.color}25` }}>
@@ -96,8 +96,39 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )
+
+        return (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-[#fafafa]">Comptes bancaires</h2>
+              <Link href="/accounts" className="text-xs text-[#e879f9]">Gérer</Link>
+            </div>
+            <div className="space-y-3">
+              {myAccounts.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">Mes comptes</p>
+                  <AccountGrid items={myAccounts} />
+                </div>
+              )}
+              {partnerAccounts.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">
+                    {partnerAccounts[0].owner?.display_name?.split(' ')[0] || 'Sa/Son'} comptes
+                  </p>
+                  <AccountGrid items={partnerAccounts} />
+                </div>
+              )}
+              {sharedAccounts.length > 0 && (
+                <div>
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">💑 Communs</p>
+                  <AccountGrid items={sharedAccounts} />
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Cartes de crédit - résumé */}
       {(creditCards || []).length > 0 && totalCardDebt > 0 && (

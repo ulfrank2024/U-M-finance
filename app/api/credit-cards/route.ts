@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
 
   if (mine) {
-    q = q.or(`owner_id.eq.${user.id},is_shared.eq.true`)
+    q = q.or(`owner_id.eq.${user.id},owner_id.is.null,is_shared.eq.true`)
   }
 
   const { data, error } = await q

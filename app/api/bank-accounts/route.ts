@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: true })
 
   if (mine) {
-    // Seulement mes comptes (owner = moi) OU comptes partagés
-    q = q.or(`owner_id.eq.${user.id},is_shared.eq.true`)
+    // Mes comptes (owner = moi) OU sans propriétaire OU partagés
+    q = q.or(`owner_id.eq.${user.id},owner_id.is.null,is_shared.eq.true`)
   }
 
   const { data: accounts, error } = await q
