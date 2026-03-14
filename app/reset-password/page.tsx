@@ -1,14 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ResetPasswordPage() {
-  const router = useRouter()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -19,7 +19,27 @@ export default function ResetPasswordPage() {
     const supabase = createClient()
     const { error: err } = await supabase.auth.updateUser({ password })
     if (err) { setError(err.message); setLoading(false); return }
-    router.push('/')
+    await supabase.auth.signOut()
+    setDone(true)
+  }
+
+  if (done) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 bg-[#09090b]">
+        <div className="text-center max-w-sm">
+          <span className="text-5xl mb-4 block">✅</span>
+          <h2 className="text-xl font-bold text-[#fafafa] mb-2">Mot de passe mis à jour !</h2>
+          <p className="text-[#a1a1aa] text-sm mb-6">Tu peux maintenant te connecter avec ton nouveau mot de passe.</p>
+          <Link
+            href="/login"
+            className="inline-block w-full h-12 rounded-xl font-semibold text-white flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
+          >
+            Se connecter
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
