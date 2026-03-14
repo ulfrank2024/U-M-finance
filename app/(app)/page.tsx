@@ -1,15 +1,16 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Wallet, CreditCard, User } from 'lucide-react'
+import { Wallet, CreditCard } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
-import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType } from '@/lib/types'
+import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
 import TransactionCard from '@/components/TransactionCard'
 import ProjectCard from '@/components/ProjectCard'
 import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
+import Avatar from '@/components/ui/Avatar'
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
@@ -19,6 +20,7 @@ export default function DashboardPage() {
   const { data: projects } = useFetch<Project[]>('/api/projects')
   const { data: bankAccounts } = useFetch<BankAccount[]>('/api/bank-accounts')
   const { data: creditCards } = useFetch<CreditCardType[]>('/api/credit-cards')
+  const { data: profile } = useFetch<Profile>('/api/profile')
 
   const recent = (transactions || []).slice(0, 5)
   const activeProjects = (projects || []).filter(p => p.status === 'active').slice(0, 3)
@@ -34,8 +36,14 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <MonthPicker value={month} onChange={setMonth} />
-          <Link href="/profile" className="w-9 h-9 rounded-xl bg-[#27272a] border border-[#3f3f46] flex items-center justify-center text-[#a1a1aa]">
-            <User size={18} />
+          <Link href="/profile" className="rounded-full overflow-hidden flex-shrink-0">
+            <Avatar
+              displayName={profile?.display_name || null}
+              email={profile?.email}
+              color={profile?.avatar_color || '#6366f1'}
+              avatarUrl={profile?.avatar_url || null}
+              size="sm"
+            />
           </Link>
         </div>
       </div>
