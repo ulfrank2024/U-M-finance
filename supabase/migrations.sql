@@ -1,11 +1,11 @@
 -- ============================================================
 -- MIGRATIONS — À exécuter dans Supabase SQL Editor
--- dans l'ordre, après avoir appliqué schema.sql
+-- Entièrement idempotent : peut être rejoué sans erreur
 -- ============================================================
 
 
 -- ============================================================
--- Migration 001 — Colonnes manquantes + politiques INSERT
+-- Migration 001 — Profils manquants + colonnes + politiques
 -- ============================================================
 
 -- Profils manquants pour les utilisateurs déjà inscrits
@@ -18,21 +18,35 @@ SELECT
 FROM auth.users au
 LEFT JOIN profiles p ON p.id = au.id
 WHERE p.id IS NULL
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
 
 -- Photo de profil
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
--- Politique INSERT transactions (manquante dans schema initial)
+-- Politique INSERT transactions
+DROP POLICY IF EXISTS "insert_own_transactions" ON transactions;
 CREATE POLICY "insert_own_transactions" ON transactions
 FOR INSERT TO authenticated
 WITH CHECK (auth.uid() = user_id);
 
 -- Politique INSERT catégories
+DROP POLICY IF EXISTS "insert_categories" ON categories;
 CREATE POLICY "insert_categories" ON categories
 FOR INSERT TO authenticated
 WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Politique UPDATE transactions (au cas où manquante)
+DROP POLICY IF EXISTS "update_own_transactions" ON transactions;
+CREATE POLICY "update_own_transactions" ON transactions
+FOR UPDATE TO authenticated
+USING (auth.uid() IS NOT NULL);
+
+-- Politique DELETE transactions (au cas où manquante)
+DROP POLICY IF EXISTS "delete_own_transactions" ON transactions;
+CREATE POLICY "delete_own_transactions" ON transactions
+FOR DELETE TO authenticated
+USING (auth.uid() = user_id);
 
 
 -- ============================================================
@@ -58,14 +72,17 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT DO NOTHING;
 
+DROP POLICY IF EXISTS "Avatars publics" ON storage.objects;
 CREATE POLICY "Avatars publics"
   ON storage.objects FOR SELECT TO public
   USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "Upload avatar personnel" ON storage.objects;
 CREATE POLICY "Upload avatar personnel"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
 
+DROP POLICY IF EXISTS "Mise à jour avatar personnel" ON storage.objects;
 CREATE POLICY "Mise à jour avatar personnel"
   ON storage.objects FOR UPDATE TO authenticated
   USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
