@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
   const month           = searchParams.get('month') // '2026-03'
   const sharedGroupId   = searchParams.get('shared_group_id')
   const creditCardId    = searchParams.get('credit_card_id')
+  const userId          = searchParams.get('user_id')
 
   let query = supabase
     .from('transactions')
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
   if (scope)          query = query.eq('scope', scope)
   if (sharedGroupId)  query = query.eq('shared_group_id', sharedGroupId)
   if (creditCardId)   query = query.eq('credit_card_id', creditCardId)
+  if (userId)         query = query.eq('user_id', userId)
 
   if (month) {
     const [year, m] = month.split('-').map(Number)

@@ -1,12 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatDate, groupByDate } from '@/lib/utils'
 import { deleteTransaction } from '@/lib/api'
-import type { Transaction } from '@/lib/types'
+import type { Transaction, Profile } from '@/lib/types'
 import TransactionCard from '@/components/TransactionCard'
+import Avatar from '@/components/ui/Avatar'
 import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
 
@@ -24,10 +26,31 @@ const FILTERS: { key: Filter; label: string }[] = [
 export default function TransactionsPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
   const [filter, setFilter] = useState<Filter>('all')
+  const [whoFilter, setWhoFilter] = useState<'couple' | string>('couple')
+  const [me, setMe] = useState<Profile | null>(null)
+  const [profiles, setProfiles] = useState<Profile[]>([])
+
+  // Charger l'utilisateur courant + tous les profils actifs
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('profiles')
+        .select('*')
+        .then(({ data }) => {
+          const all = data || []
+          const myProfile = all.find(p => p.id === user.id) || null
+          setMe(myProfile)
+          setProfiles(all)
+        })
+    })
+  }, [])
 
   const params: Record<string, string> = { month }
   if (filter === 'income' || filter === 'expense') params.type = filter
   if (filter === 'personal' || filter === 'common' || filter === 'shared') params.scope = filter
+  if (whoFilter !== 'couple') params.user_id = whoFilter
 
   const { data: transactions, loading, refetch } = useFetch<Transaction[]>(
     `/api/transactions?${new URLSearchParams(params)}`
@@ -41,6 +64,9 @@ export default function TransactionsPage() {
 
   const groups = groupByDate(transactions || [])
   const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a))
+  const partner = profiles.find(p => p.id !== me?.id)
+
+  const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
 
   return (
     <div className="px-4 pt-6 pb-4">
@@ -50,18 +76,68 @@ export default function TransactionsPage() {
         <MonthPicker value={month} onChange={setMonth} />
       </div>
 
-      {/* Filtres */}
+      {/* Filtre QUI */}
+      <div className="flex gap-2 mb-3">
+        {/* Couple */}
+        <button
+          onClick={() => setWhoFilter('couple')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            whoFilter === 'couple' ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'
+          }`}
+          style={whoFilter === 'couple' ? btnStyle : {}}
+        >
+          💑 Couple
+        </button>
+
+        {/* Moi */}
+        {me && (
+          <button
+            onClick={() => setWhoFilter(me.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              whoFilter === me.id ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'
+            }`}
+            style={whoFilter === me.id ? btnStyle : {}}
+          >
+            <Avatar
+              displayName={me.display_name}
+              color={me.avatar_color}
+              avatarUrl={me.avatar_url}
+              size="xs"
+            />
+            Moi
+          </button>
+        )}
+
+        {/* Partenaire */}
+        {partner && (
+          <button
+            onClick={() => setWhoFilter(partner.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              whoFilter === partner.id ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'
+            }`}
+            style={whoFilter === partner.id ? btnStyle : {}}
+          >
+            <Avatar
+              displayName={partner.display_name}
+              color={partner.avatar_color}
+              avatarUrl={partner.avatar_url}
+              size="xs"
+            />
+            {partner.display_name?.split(' ')[0] || 'Partenaire'}
+          </button>
+        )}
+      </div>
+
+      {/* Filtres type/scope */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-none">
         {FILTERS.map(f => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              filter === f.key
-                ? 'text-white'
-                : 'bg-[#27272a] text-[#a1a1aa]'
+              filter === f.key ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'
             }`}
-            style={filter === f.key ? { background: 'linear-gradient(135deg, #e879f9, #818cf8)' } : {}}
+            style={filter === f.key ? btnStyle : {}}
           >
             {f.label}
           </button>
