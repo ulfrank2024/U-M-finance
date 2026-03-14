@@ -11,11 +11,11 @@ export async function PUT(
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { id } = await params
-  const { name, icon, color } = await request.json()
+  const { name, icon, color, is_fixed } = await request.json()
 
   const { data, error } = await supabase
     .from('categories')
-    .update({ name, icon, color, updated_at: new Date().toISOString() })
+    .update({ name, icon, color, ...(is_fixed !== undefined ? { is_fixed } : {}), updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()

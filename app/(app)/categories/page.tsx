@@ -52,6 +52,11 @@ export default function CategoriesPage() {
     setPendingDelete(id)
   }
 
+  async function handleToggleFixed(cat: Category) {
+    await updateCategory(cat.id, { name: cat.name, icon: cat.icon, color: cat.color, is_fixed: !cat.is_fixed })
+    refetch()
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return
     await deleteCategory(pendingDelete)
@@ -114,6 +119,15 @@ export default function CategoriesPage() {
                   </div>
                   <span className="flex-1 text-sm font-medium text-[#fafafa]">{cat.name}</span>
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                  <button
+                    onClick={() => handleToggleFixed(cat)}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition-colors ${
+                      cat.is_fixed ? 'bg-[#f97316]/20 text-[#f97316]' : 'bg-[#27272a] text-[#71717a]'
+                    }`}
+                    title={cat.is_fixed ? 'Charge fixe' : 'Charge variable'}
+                  >
+                    📌
+                  </button>
                   <button onClick={() => startEdit(cat)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]"><Pencil size={14} /></button>
                   <button onClick={() => handleDelete(cat.id)} className="p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"><Trash2 size={14} /></button>
                 </>

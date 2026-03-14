@@ -154,3 +154,9 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- ============================================================
+-- Migration 008 — Charges fixes sur les catégories
+-- ============================================================
+ALTER TABLE categories
+  ADD COLUMN IF NOT EXISTS is_fixed BOOLEAN DEFAULT false;

@@ -12,6 +12,7 @@ export interface Category {
   name: string
   icon: string
   color: string
+  is_fixed: boolean
   created_by: string | null
   created_at: string
   updated_at: string
@@ -161,4 +162,17 @@ export interface BalanceResponse {
     total_expenses: number
     net: number
   }
+}
+
+export interface ReportData {
+  month: string
+  income: number
+  fixed_expenses: number
+  variable_expenses: number
+  savings: number
+  savings_rate: number
+  card_debt: number
+  fixed_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
+  variable_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
+  trend: { month: string; income: number; expenses: number }[]
 }

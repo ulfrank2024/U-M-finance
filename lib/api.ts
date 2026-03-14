@@ -1,6 +1,6 @@
 import type {
   BankAccount, BalanceResponse, Category, CreditCard, CreditCardPayment,
-  Profile, Project, ProjectContribution, SharedGroup, Transaction
+  Profile, Project, ProjectContribution, ReportData, SharedGroup, Transaction
 } from './types'
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -83,3 +83,6 @@ export const deleteBankAccount = (id: string) =>
 export const fetchProfile = () => req<Profile>('/api/profile')
 export const updateProfile = (body: { display_name?: string; avatar_color?: string }) =>
   req<Profile>('/api/profile', { method: 'PUT', body: JSON.stringify(body) })
+
+// Report
+export const fetchReport = (month: string) => req<ReportData>(`/api/report?month=${month}`)

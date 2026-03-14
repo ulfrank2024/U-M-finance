@@ -126,6 +126,18 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {/* Lien rapport */}
+      <Link href="/report" className="flex items-center justify-between p-4 bg-[#18181b] rounded-2xl border border-[#3f3f46]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#818cf8]/15 flex items-center justify-center text-xl">📊</div>
+          <div>
+            <p className="text-sm font-medium text-[#fafafa]">Rapport mensuel</p>
+            <p className="text-xs text-[#a1a1aa]">Charges fixes, variables, tendances</p>
+          </div>
+        </div>
+        <span className="text-[#a1a1aa] text-lg">›</span>
+      </Link>
+
       {/* Dernières transactions */}
       <section>
         <div className="flex items-center justify-between mb-2">
