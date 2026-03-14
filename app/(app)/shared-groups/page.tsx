@@ -14,13 +14,23 @@ export default function SharedGroupsPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', description: '' })
+  const [formLoading, setFormLoading] = useState(false)
+  const [formError, setFormError] = useState('')
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    await createSharedGroup({ name: form.name, description: form.description || undefined })
-    setShowAdd(false)
-    setForm({ name: '', description: '' })
-    refetch()
+    setFormLoading(true)
+    setFormError('')
+    try {
+      await createSharedGroup({ name: form.name, description: form.description || undefined })
+      setShowAdd(false)
+      setForm({ name: '', description: '' })
+      refetch()
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Erreur lors de la création')
+    } finally {
+      setFormLoading(false)
+    }
   }
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
@@ -110,7 +120,10 @@ export default function SharedGroupsPage() {
             <form onSubmit={handleAdd} className="space-y-3">
               <input placeholder="Nom (ex: Amazon Mars, Courses Carrefour)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
               <input placeholder="Description (optionnel)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Créer</button>
+              {formError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{formError}</p>}
+              <button type="submit" disabled={formLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+                {formLoading ? 'Création...' : 'Créer'}
+              </button>
             </form>
           </div>
         </div>

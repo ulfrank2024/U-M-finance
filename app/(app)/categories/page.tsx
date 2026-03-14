@@ -14,15 +14,25 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', icon: '📁', color: '#6366f1' })
   const [editForm, setEditForm] = useState({ name: '', icon: '', color: '' })
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState('')
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    await createCategory({ name: form.name, icon: form.icon, color: form.color })
-    setShowAdd(false)
-    setForm({ name: '', icon: '📁', color: '#6366f1' })
-    refetch()
+    setAddLoading(true)
+    setAddError('')
+    try {
+      await createCategory({ name: form.name, icon: form.icon, color: form.color })
+      setShowAdd(false)
+      setForm({ name: '', icon: '📁', color: '#6366f1' })
+      refetch()
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Erreur lors de la création')
+    } finally {
+      setAddLoading(false)
+    }
   }
 
   function startEdit(cat: Category) {
@@ -142,7 +152,10 @@ export default function CategoriesPage() {
                   ))}
                 </div>
               </div>
-              <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Ajouter</button>
+              {addError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{addError}</p>}
+              <button type="submit" disabled={addLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+                {addLoading ? 'Ajout...' : 'Ajouter'}
+              </button>
             </form>
           </div>
         </div>

@@ -13,18 +13,28 @@ export default function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [contribution, setContribution] = useState({ amount: '', note: '' })
   const [form, setForm] = useState({ name: '', description: '', target_amount: '', deadline: '' })
+  const [formLoading, setFormLoading] = useState(false)
+  const [formError, setFormError] = useState('')
 
   async function handleAddProject(e: React.FormEvent) {
     e.preventDefault()
-    await createProject({
-      name: form.name,
-      description: form.description || undefined,
-      target_amount: parseFloat(form.target_amount),
-      deadline: form.deadline || undefined,
-    } as Parameters<typeof createProject>[0])
-    setShowAdd(false)
-    setForm({ name: '', description: '', target_amount: '', deadline: '' })
-    refetch()
+    setFormLoading(true)
+    setFormError('')
+    try {
+      await createProject({
+        name: form.name,
+        description: form.description || undefined,
+        target_amount: parseFloat(form.target_amount),
+        deadline: form.deadline || undefined,
+      } as Parameters<typeof createProject>[0])
+      setShowAdd(false)
+      setForm({ name: '', description: '', target_amount: '', deadline: '' })
+      refetch()
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Erreur lors de la création')
+    } finally {
+      setFormLoading(false)
+    }
   }
 
   async function handleContribution(e: React.FormEvent) {
@@ -126,7 +136,10 @@ export default function ProjectsPage() {
                 <label className="text-xs text-[#a1a1aa] mb-1 block">Date limite (optionnel)</label>
                 <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />
               </div>
-              <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Créer</button>
+              {formError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{formError}</p>}
+              <button type="submit" disabled={formLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+                {formLoading ? 'Création...' : 'Créer'}
+              </button>
             </form>
           </div>
         </div>
