@@ -10,6 +10,8 @@ import CreditCardWidget from '@/components/CreditCardWidget'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import PickerModal from '@/components/ui/PickerModal'
+import { ChevronRight } from 'lucide-react'
 
 export default function CreditCardsPage() {
   const { data: cards, loading, refetch } = useFetch<CreditCard[]>('/api/credit-cards')
@@ -21,6 +23,7 @@ export default function CreditCardsPage() {
   const [paymentNote, setPaymentNote] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [paymentAccountId, setPaymentAccountId] = useState('')
+  const [showPayAccountPicker, setShowPayAccountPicker] = useState(false)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState('')
@@ -249,6 +252,13 @@ export default function CreditCardsPage() {
         />
       )}
 
+      <PickerModal
+        isOpen={showPayAccountPicker} title="Compte source du paiement"
+        options={bankAccounts.map(a => ({ value: a.id, label: a.name, icon: '🏦', color: a.color }))}
+        value={paymentAccountId} onSelect={setPaymentAccountId} onClose={() => setShowPayAccountPicker(false)}
+        nullable nullLabel="Non spécifié"
+      />
+
       <ConfirmModal
         isOpen={!!pendingDelete}
         title="Supprimer la carte"
@@ -305,10 +315,16 @@ export default function CreditCardsPage() {
               {bankAccounts.length > 0 && (
                 <div>
                   <label className="text-xs text-[#a1a1aa] mb-1 block">Compte débité (source du paiement)</label>
-                  <select value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)}>
-                    <option value="">Sélectionner un compte</option>
-                    {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <button type="button" onClick={() => setShowPayAccountPicker(true)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm"
+                  >
+                    <span className={paymentAccountId ? 'text-[#fafafa]' : 'text-[#71717a]'}>
+                      {bankAccounts.find(a => a.id === paymentAccountId)
+                        ? `🏦 ${bankAccounts.find(a => a.id === paymentAccountId)!.name}`
+                        : 'Sélectionner un compte'}
+                    </span>
+                    <ChevronRight size={16} className="text-[#71717a]" />
+                  </button>
                 </div>
               )}
               <input placeholder="Note (ex: paiement minimum, solde complet…)" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
