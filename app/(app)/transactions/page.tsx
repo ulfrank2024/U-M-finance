@@ -11,6 +11,7 @@ import TransactionCard from '@/components/TransactionCard'
 import Avatar from '@/components/ui/Avatar'
 import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 type Filter = 'all' | 'income' | 'expense' | 'personal' | 'common' | 'shared'
 
@@ -29,6 +30,7 @@ export default function TransactionsPage() {
   const [whoFilter, setWhoFilter] = useState<'couple' | string>('couple')
   const [me, setMe] = useState<Profile | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   // Charger l'utilisateur courant + tous les profils actifs
   useEffect(() => {
@@ -56,10 +58,8 @@ export default function TransactionsPage() {
     `/api/transactions?${new URLSearchParams(params)}`
   )
 
-  async function handleDelete(id: string) {
-    if (!confirm('Supprimer cette transaction ?')) return
-    await deleteTransaction(id)
-    refetch()
+  function handleDelete(id: string) {
+    setPendingDelete(id)
   }
 
   const groups = groupByDate(transactions || [])
@@ -181,6 +181,16 @@ export default function TransactionsPage() {
           ))}
         </div>
       )}
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Supprimer la transaction"
+        message="Cette transaction sera définitivement supprimée."
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (pendingDelete) { await deleteTransaction(pendingDelete); setPendingDelete(null); refetch() }
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

@@ -56,6 +56,8 @@ export const deleteCreditCard = (id: string) =>
   req<{ success: boolean }>(`/api/credit-cards/${id}`, { method: 'DELETE' })
 export const addCardPayment = (cardId: string, body: { amount: number; note?: string; payment_date?: string }) =>
   req<CreditCardPayment>(`/api/credit-cards/${cardId}/payments`, { method: 'POST', body: JSON.stringify(body) })
+export const deleteCardPayment = (cardId: string, paymentId: string) =>
+  req<{ success: boolean }>(`/api/credit-cards/${cardId}/payments/${paymentId}`, { method: 'DELETE' })
 
 // Projects
 export const fetchProjects = () => req<Project[]>('/api/projects')

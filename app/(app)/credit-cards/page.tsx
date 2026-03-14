@@ -3,12 +3,13 @@ import { useState, useEffect } from 'react'
 import { Plus, X, CreditCard as CardIcon, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
-import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard } from '@/lib/api'
+import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard, deleteCardPayment } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { CreditCard } from '@/lib/types'
 import CreditCardWidget from '@/components/CreditCardWidget'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function CreditCardsPage() {
   const { data: cards, loading, refetch } = useFetch<CreditCard[]>('/api/credit-cards')
@@ -24,6 +25,8 @@ export default function CreditCardsPage() {
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
   const [form, setForm] = useState({ name: '', last_four: '', credit_limit: '', opening_balance: '', due_date: '', is_shared: false })
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [pendingDeletePayment, setPendingDeletePayment] = useState<{ cardId: string; paymentId: string } | null>(null)
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -98,7 +101,7 @@ export default function CreditCardsPage() {
                   <Pencil size={16} />
                 </button>
                 <button
-                  onClick={async () => { if (confirm('Supprimer cette carte ?')) { await deleteCreditCard(card.id); refetch() } }}
+                  onClick={() => setPendingDelete(card.id)}
                   className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]"
                 >
                   <X size={16} />
@@ -125,7 +128,15 @@ export default function CreditCardsPage() {
                           {p.note ? ` — ${p.note}` : ''}
                         </span>
                       </div>
-                      <span className="text-[#22c55e] font-semibold">{formatCurrency(p.amount)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#22c55e] font-semibold">{formatCurrency(p.amount)}</span>
+                        <button
+                          onClick={() => setPendingDeletePayment({ cardId: card.id, paymentId: p.id })}
+                          className="p-1 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -232,6 +243,32 @@ export default function CreditCardsPage() {
           onSaved={() => { setEditCard(null); refetch() }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Supprimer la carte"
+        message="La carte et tout son historique de paiements seront supprimés. Les transactions liées resteront."
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (pendingDelete) { await deleteCreditCard(pendingDelete); setPendingDelete(null); refetch() }
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!pendingDeletePayment}
+        title="Supprimer ce paiement"
+        message="Ce paiement sera définitivement supprimé et le solde de la carte sera recalculé."
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (pendingDeletePayment) {
+            await deleteCardPayment(pendingDeletePayment.cardId, pendingDeletePayment.paymentId)
+            setPendingDeletePayment(null)
+            refetch()
+          }
+        }}
+        onCancel={() => setPendingDeletePayment(null)}
+      />
 
       {/* Modal paiement */}
       {selectedCard && (

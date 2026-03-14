@@ -5,6 +5,7 @@ import { useFetch } from '@/hooks/useFetch'
 import { createCategory, updateCategory, deleteCategory } from '@/lib/api'
 import type { Category } from '@/lib/types'
 import EmptyState from '@/components/ui/EmptyState'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 const PRESET_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#e879f9','#ec4899','#a855f7','#6b7280','#818cf8']
 
@@ -16,6 +17,7 @@ export default function CategoriesPage() {
   const [editForm, setEditForm] = useState({ name: '', icon: '', color: '' })
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
 
@@ -47,8 +49,13 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Supprimer cette catégorie ?')) return
-    await deleteCategory(id)
+    setPendingDelete(id)
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return
+    await deleteCategory(pendingDelete)
+    setPendingDelete(null)
     refetch()
   }
 
@@ -115,6 +122,15 @@ export default function CategoriesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Supprimer la catégorie"
+        message="Cette action est irréversible. Êtes-vous sûr de vouloir supprimer cette catégorie ?"
+        confirmLabel="Supprimer"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       {/* Modal nouvelle catégorie */}
       {showAdd && (

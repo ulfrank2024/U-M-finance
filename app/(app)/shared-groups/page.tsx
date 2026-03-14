@@ -8,6 +8,7 @@ import type { SharedGroup } from '@/lib/types'
 import TransactionCard from '@/components/TransactionCard'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function SharedGroupsPage() {
   const { data: groups, loading, refetch } = useFetch<SharedGroup[]>('/api/shared-groups')
@@ -16,6 +17,7 @@ export default function SharedGroupsPage() {
   const [form, setForm] = useState({ name: '', description: '' })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -100,7 +102,7 @@ export default function SharedGroupsPage() {
                       <p className="text-xs text-[#a1a1aa] text-center py-2">Aucune transaction liée à ce groupe</p>
                     )}
                     <button
-                      onClick={async () => { if (confirm('Supprimer ce groupe ?')) { await deleteSharedGroup(group.id); refetch() } }}
+                      onClick={() => setPendingDelete(group.id)}
                       className="w-full h-9 rounded-xl text-xs text-[#ef4444] bg-[#ef4444]/10 mt-2"
                     >
                       Supprimer le groupe
@@ -112,6 +114,17 @@ export default function SharedGroupsPage() {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Supprimer le groupe"
+        message="Le groupe sera supprimé. Les transactions liées resteront mais ne seront plus groupées."
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (pendingDelete) { await deleteSharedGroup(pendingDelete); setPendingDelete(null); refetch() }
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       {/* Modal nouveau groupe */}
       {showAdd && (

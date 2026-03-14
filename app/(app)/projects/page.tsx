@@ -6,6 +6,7 @@ import { createProject, addContribution, deleteProject, updateProject } from '@/
 import type { Project } from '@/lib/types'
 import ProjectCard from '@/components/ProjectCard'
 import EmptyState from '@/components/ui/EmptyState'
+import ConfirmModal from '@/components/ui/ConfirmModal'
 
 export default function ProjectsPage() {
   const { data: projects, loading, refetch } = useFetch<Project[]>('/api/projects')
@@ -15,6 +16,7 @@ export default function ProjectsPage() {
   const [form, setForm] = useState({ name: '', description: '', target_amount: '', deadline: '' })
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   async function handleAddProject(e: React.FormEvent) {
     e.preventDefault()
@@ -90,7 +92,7 @@ export default function ProjectsPage() {
                       <button onClick={() => handleToggleStatus(p)} className="px-3 h-9 rounded-xl text-xs bg-[#27272a] text-[#a1a1aa]">
                         Pause
                       </button>
-                      <button onClick={async () => { if (confirm('Supprimer ?')) { await deleteProject(p.id); refetch() } }} className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
+                      <button onClick={() => setPendingDelete(p.id)} className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
                         <X size={16} />
                       </button>
                     </div>
@@ -111,7 +113,7 @@ export default function ProjectsPage() {
                       <button onClick={() => handleToggleStatus(p)} className="flex-1 h-9 rounded-xl text-xs font-medium bg-[#27272a] text-[#a1a1aa]">
                         {p.status === 'paused' ? 'Reprendre' : 'Réactiver'}
                       </button>
-                      <button onClick={async () => { if (confirm('Supprimer ?')) { await deleteProject(p.id); refetch() } }} className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
+                      <button onClick={() => setPendingDelete(p.id)} className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
                         <X size={16} />
                       </button>
                     </div>
@@ -122,6 +124,17 @@ export default function ProjectsPage() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!pendingDelete}
+        title="Supprimer le projet"
+        message="Cette action est irréversible. Le projet et toutes ses contributions seront supprimés."
+        confirmLabel="Supprimer"
+        onConfirm={async () => {
+          if (pendingDelete) { await deleteProject(pendingDelete); setPendingDelete(null); refetch() }
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
 
       {/* Modal nouveau projet */}
       {showAdd && (
