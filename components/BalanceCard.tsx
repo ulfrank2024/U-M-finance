@@ -31,6 +31,12 @@ export default function BalanceCard({ data }: Props) {
                 <span className="text-[#a1a1aa]">Dépenses</span>
                 <span className="text-[#ef4444]">{formatCurrency(p.total_expenses)}</span>
               </div>
+              {p.card_debt > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#a1a1aa]">💳 Dette carte</span>
+                  <span className="text-[#f97316]">{formatCurrency(p.card_debt)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-xs border-t border-[#3f3f46] pt-1 mt-1">
                 <span className="text-[#a1a1aa]">Net</span>
                 <span className={p.net >= 0 ? 'text-[#22c55e] font-semibold' : 'text-[#ef4444] font-semibold'}>

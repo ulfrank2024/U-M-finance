@@ -1,74 +1,96 @@
 'use client'
-import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, X, CreditCard as CardIcon } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { createCreditCard, addCardPayment, deleteCreditCard } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import type { CreditCard } from '@/lib/types'
 import CreditCardWidget from '@/components/CreditCardWidget'
+import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
 
 export default function CreditCardsPage() {
   const { data: cards, loading, refetch } = useFetch<CreditCard[]>('/api/credit-cards')
+  const [meId, setMeId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [payLoading, setPayLoading] = useState(false)
+  const [payError, setPayError] = useState('')
+  const [addLoading, setAddLoading] = useState(false)
+  const [addError, setAddError] = useState('')
   const [form, setForm] = useState({ name: '', last_four: '', credit_limit: '', due_date: '', is_shared: false })
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data: { user } }) => {
+      if (user) setMeId(user.id)
+    })
+  }, [])
 
   async function handleAddCard(e: React.FormEvent) {
     e.preventDefault()
-    await createCreditCard({
-      name: form.name,
-      last_four: form.last_four || undefined,
-      credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : undefined,
-      due_date: form.due_date ? parseInt(form.due_date) : undefined,
-      is_shared: form.is_shared,
-    } as Parameters<typeof createCreditCard>[0])
-    setShowAdd(false)
-    setForm({ name: '', last_four: '', credit_limit: '', due_date: '', is_shared: false })
-    refetch()
+    setAddLoading(true); setAddError('')
+    try {
+      await createCreditCard({
+        name: form.name,
+        last_four: form.last_four || undefined,
+        credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : undefined,
+        due_date: form.due_date ? parseInt(form.due_date) : undefined,
+        is_shared: form.is_shared,
+      } as Parameters<typeof createCreditCard>[0])
+      setShowAdd(false)
+      setForm({ name: '', last_four: '', credit_limit: '', due_date: '', is_shared: false })
+      refetch()
+    } catch (err: unknown) {
+      setAddError(err instanceof Error ? err.message : 'Erreur')
+    } finally { setAddLoading(false) }
   }
 
   async function handlePayment(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedCard || !paymentAmount) return
-    await addCardPayment(selectedCard.id, { amount: parseFloat(paymentAmount), note: paymentNote || undefined })
-    setSelectedCard(null)
-    setPaymentAmount('')
-    setPaymentNote('')
-    refetch()
+    setPayLoading(true); setPayError('')
+    try {
+      await addCardPayment(selectedCard.id, {
+        amount: parseFloat(paymentAmount),
+        note: paymentNote || undefined,
+        payment_date: paymentDate,
+      })
+      setSelectedCard(null); setPaymentAmount(''); setPaymentNote('')
+      setPaymentDate(new Date().toISOString().split('T')[0])
+      refetch()
+    } catch (err: unknown) {
+      setPayError(err instanceof Error ? err.message : 'Erreur')
+    } finally { setPayLoading(false) }
   }
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
+  const allCards = cards || []
 
-  return (
-    <div className="px-4 pt-6 pb-4">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-xl font-bold text-[#fafafa]">Cartes de crédit</h1>
-        <button onClick={() => setShowAdd(true)} className="p-2 rounded-xl text-white" style={btnStyle}>
-          <Plus size={20} />
-        </button>
-      </div>
+  // Regrouper : mes cartes / ses cartes / communes
+  const myCards      = allCards.filter(c => !c.is_shared && c.owner_id === meId)
+  const partnerCards = allCards.filter(c => !c.is_shared && c.owner_id !== meId && c.owner_id !== null)
+  const sharedCards  = allCards.filter(c => c.is_shared)
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2].map(i => <div key={i} className="h-36 bg-[#18181b] rounded-2xl animate-pulse" />)}
-        </div>
-      ) : !cards?.length ? (
-        <EmptyState icon="💳" title="Aucune carte" description="Ajoutez votre première carte de crédit" />
-      ) : (
+  // Total dette globale
+  const totalDebt = allCards.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
+  const overLimitCards = allCards.filter(c => c.credit_limit != null && c.current_balance > c.credit_limit)
+
+  function CardSection({ title, items }: { title: string; items: CreditCard[] }) {
+    if (!items.length) return null
+    return (
+      <section>
+        <p className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider mb-2">{title}</p>
         <div className="space-y-4">
-          {cards.map(card => (
+          {items.map(card => (
             <div key={card.id}>
               <CreditCardWidget card={card} />
               <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => setSelectedCard(card)}
-                  className="flex-1 h-9 rounded-xl text-xs font-medium text-white"
-                  style={btnStyle}
-                >
-                  Ajouter un remboursement
+                <button onClick={() => setSelectedCard(card)} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={btnStyle}>
+                  💳 Enregistrer un paiement
                 </button>
                 <button
                   onClick={async () => { if (confirm('Supprimer cette carte ?')) { await deleteCreditCard(card.id); refetch() } }}
@@ -81,16 +103,88 @@ export default function CreditCardsPage() {
               {/* Historique paiements */}
               {card.credit_card_payments && card.credit_card_payments.length > 0 && (
                 <div className="mt-2 space-y-1">
-                  {card.credit_card_payments.slice(0, 3).map(p => (
-                    <div key={p.id} className="flex justify-between items-center px-3 py-2 bg-[#18181b] rounded-xl text-xs">
-                      <span className="text-[#a1a1aa]">{p.payment_date} — {p.note || 'Remboursement'}</span>
-                      <span className="text-[#22c55e] font-medium">{formatCurrency(p.amount)}</span>
+                  <p className="text-[10px] text-[#71717a] uppercase tracking-wider mb-1">Derniers paiements</p>
+                  {card.credit_card_payments.slice(0, 4).map(p => (
+                    <div key={p.id} className="flex items-center justify-between px-3 py-2 bg-[#18181b] rounded-xl text-xs border border-[#3f3f46]">
+                      <div className="flex items-center gap-2">
+                        {p.profiles && (
+                          <Avatar
+                            displayName={p.profiles.display_name}
+                            color={p.profiles.avatar_color}
+                            avatarUrl={p.profiles.avatar_url}
+                            size="xs"
+                          />
+                        )}
+                        <span className="text-[#a1a1aa]">
+                          {formatDate(p.payment_date + 'T00:00:00')}
+                          {p.note ? ` — ${p.note}` : ''}
+                        </span>
+                      </div>
+                      <span className="text-[#22c55e] font-semibold">{formatCurrency(p.amount)}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ))}
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <div className="px-4 pt-6 pb-4">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-[#fafafa]">Cartes de crédit</h1>
+        <button onClick={() => setShowAdd(true)} className="p-2 rounded-xl text-white" style={btnStyle}>
+          <Plus size={20} />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2].map(i => <div key={i} className="h-36 bg-[#18181b] rounded-2xl animate-pulse" />)}
+        </div>
+      ) : !allCards.length ? (
+        <EmptyState icon="💳" title="Aucune carte" description="Ajoutez votre première carte de crédit" />
+      ) : (
+        <div className="space-y-5">
+          {/* Résumé global */}
+          <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46] space-y-2">
+            <p className="text-xs text-[#a1a1aa] font-semibold uppercase tracking-wider">Résumé couple</p>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#fafafa]">Dette totale</span>
+              <span className={`font-bold ${totalDebt > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+                {formatCurrency(totalDebt)}
+              </span>
+            </div>
+            {overLimitCards.length > 0 && (
+              <div className="bg-[#ef4444]/10 border border-[#ef4444]/20 rounded-xl px-3 py-2">
+                <p className="text-xs text-[#ef4444] font-medium">
+                  ⚠️ {overLimitCards.length} carte{overLimitCards.length > 1 ? 's' : ''} dépassée{overLimitCards.length > 1 ? 's' : ''} :{' '}
+                  {overLimitCards.map(c => c.name).join(', ')}
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              {allCards.map(c => (
+                <div key={c.id} className="text-center">
+                  <div className="flex items-center justify-center gap-1 mb-0.5">
+                    {c.owner && <Avatar displayName={c.owner.display_name} color={c.owner.avatar_color} avatarUrl={c.owner.avatar_url} size="xs" />}
+                    {c.is_shared && <span className="text-[10px] text-[#818cf8]">💑</span>}
+                  </div>
+                  <p className="text-[10px] text-[#a1a1aa] truncate">{c.name}</p>
+                  <p className={`text-xs font-semibold ${c.current_balance > (c.credit_limit || Infinity) ? 'text-[#ef4444]' : 'text-[#fafafa]'}`}>
+                    {formatCurrency(c.current_balance)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <CardSection title="Mes cartes" items={myCards} />
+          <CardSection title="Ses cartes" items={partnerCards} />
+          <CardSection title="Cartes communes" items={sharedCards} />
         </div>
       )}
 
@@ -112,22 +206,47 @@ export default function CreditCardsPage() {
                   <span className="text-sm text-[#fafafa]">Carte commune</span>
                 </label>
               </div>
-              <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Ajouter</button>
+              {addError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{addError}</p>}
+              <button type="submit" disabled={addLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+                {addLoading ? 'Ajout...' : 'Ajouter'}
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Modal remboursement */}
+      {/* Modal paiement */}
       {selectedCard && (
         <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={() => setSelectedCard(null)}>
           <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-[#fafafa] mb-1">Remboursement</h3>
-            <p className="text-sm text-[#a1a1aa] mb-4">{selectedCard.name}</p>
+            <h3 className="text-lg font-bold text-[#fafafa] mb-1">Paiement de carte</h3>
+            <p className="text-sm text-[#a1a1aa] mb-1">{selectedCard.name}</p>
+            <div className="flex items-center gap-3 mb-4 p-3 bg-[#27272a] rounded-xl">
+              <CardIcon size={16} className="text-[#a1a1aa]" />
+              <div>
+                <p className="text-xs text-[#a1a1aa]">Solde dû actuel</p>
+                <p className={`text-sm font-bold ${selectedCard.current_balance > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+                  {formatCurrency(selectedCard.current_balance)}
+                  {selectedCard.credit_limit != null && selectedCard.current_balance > selectedCard.credit_limit && (
+                    <span className="text-xs text-[#ef4444] ml-2">⚠️ dépassé de {formatCurrency(selectedCard.current_balance - selectedCard.credit_limit)}</span>
+                  )}
+                </p>
+              </div>
+            </div>
             <form onSubmit={handlePayment} className="space-y-3">
-              <input type="number" inputMode="decimal" placeholder="Montant ($)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
-              <input placeholder="Note (optionnel)" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
-              <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Enregistrer</button>
+              <div>
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Montant payé ($)</label>
+                <input type="number" inputMode="decimal" placeholder="0.00" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
+              </div>
+              <div>
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Date du paiement</label>
+                <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+              </div>
+              <input placeholder="Note (ex: paiement minimum, solde complet…)" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
+              {payError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{payError}</p>}
+              <button type="submit" disabled={payLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+                {payLoading ? 'Enregistrement...' : 'Enregistrer le paiement'}
+              </button>
             </form>
           </div>
         </div>

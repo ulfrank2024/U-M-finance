@@ -39,6 +39,36 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Dette cartes de crédit par propriétaire
+  const { data: allCards } = await admin
+    .from('credit_cards')
+    .select('id, owner_id, is_shared, credit_limit, credit_card_payments(amount)')
+
+  const { data: cardTxs } = await admin
+    .from('transactions')
+    .select('credit_card_id, amount')
+    .not('credit_card_id', 'is', null)
+    .eq('type', 'expense')
+
+  const cardDebtByUser: Record<string, number> = {}
+  for (const card of (allCards || [])) {
+    const spent = (cardTxs || [])
+      .filter((t: { credit_card_id: string }) => t.credit_card_id === card.id)
+      .reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
+    const paid = ((card.credit_card_payments || []) as { amount: number }[])
+      .reduce((s, p) => s + Number(p.amount), 0)
+    const balance = Math.max(0, spent - paid)
+    if (card.is_shared) {
+      // Dette partagée : répartie équitablement
+      const half = balance / 2
+      for (const p of (profiles || [])) {
+        cardDebtByUser[p.id] = (cardDebtByUser[p.id] || 0) + half
+      }
+    } else if (card.owner_id) {
+      cardDebtByUser[card.owner_id] = (cardDebtByUser[card.owner_id] || 0) + balance
+    }
+  }
+
   // Toutes les transactions de la période
   let txQuery = admin
     .from('transactions')
@@ -74,6 +104,7 @@ export async function GET(request: NextRequest) {
       display_name:     p.display_name || p.email,
       avatar_color:     p.avatar_color,
       avatar_url:       p.avatar_url || null,
+      card_debt:        cardDebtByUser[p.id] || 0,
       income:           t.income,
       personal_expenses:t.personal_expenses,
       common_expenses:  t.common_expenses,

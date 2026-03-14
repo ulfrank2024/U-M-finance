@@ -126,6 +126,7 @@ export interface BalanceSummary {
   common_expenses: number
   shared_expenses: number
   total_expenses: number
+  card_debt: number
   net: number
 }
 
