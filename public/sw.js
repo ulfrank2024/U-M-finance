@@ -1,4 +1,4 @@
-const CACHE = 'um-finance-v1'
+const CACHE = 'um-finance-v2'
 const STATIC_ROUTES = ['/', '/transactions', '/projects', '/credit-cards', '/profile']
 
 self.addEventListener('install', (e) => {
@@ -10,9 +10,18 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => {
+      const oldCaches = keys.filter((k) => k !== CACHE)
+      const isUpdate = oldCaches.length > 0
+      return Promise.all(oldCaches.map((k) => caches.delete(k))).then(() => {
+        if (isUpdate) {
+          // Notifier tous les onglets ouverts qu'une mise à jour est prête
+          return self.clients.matchAll({ includeUncontrolled: true }).then((clients) =>
+            clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }))
+          )
+        }
+      })
+    })
   )
   self.clients.claim()
 })
