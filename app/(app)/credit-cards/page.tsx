@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, X, CreditCard as CardIcon } from 'lucide-react'
+import { Plus, X, CreditCard as CardIcon, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
-import { createCreditCard, addCardPayment, deleteCreditCard } from '@/lib/api'
+import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { CreditCard } from '@/lib/types'
 import CreditCardWidget from '@/components/CreditCardWidget'
@@ -14,6 +14,7 @@ export default function CreditCardsPage() {
   const { data: cards, loading, refetch } = useFetch<CreditCard[]>('/api/credit-cards')
   const [meId, setMeId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [editCard, setEditCard] = useState<CreditCard | null>(null)
   const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
@@ -22,7 +23,7 @@ export default function CreditCardsPage() {
   const [payError, setPayError] = useState('')
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState('')
-  const [form, setForm] = useState({ name: '', last_four: '', credit_limit: '', due_date: '', is_shared: false })
+  const [form, setForm] = useState({ name: '', last_four: '', credit_limit: '', opening_balance: '', due_date: '', is_shared: false })
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data: { user } }) => {
@@ -38,11 +39,12 @@ export default function CreditCardsPage() {
         name: form.name,
         last_four: form.last_four || undefined,
         credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : undefined,
+        opening_balance: form.opening_balance ? parseFloat(form.opening_balance) : 0,
         due_date: form.due_date ? parseInt(form.due_date) : undefined,
         is_shared: form.is_shared,
       } as Parameters<typeof createCreditCard>[0])
       setShowAdd(false)
-      setForm({ name: '', last_four: '', credit_limit: '', due_date: '', is_shared: false })
+      setForm({ name: '', last_four: '', credit_limit: '', opening_balance: '', due_date: '', is_shared: false })
       refetch()
     } catch (err: unknown) {
       setAddError(err instanceof Error ? err.message : 'Erreur')
@@ -90,7 +92,10 @@ export default function CreditCardsPage() {
               <CreditCardWidget card={card} />
               <div className="flex gap-2 mt-2">
                 <button onClick={() => setSelectedCard(card)} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={btnStyle}>
-                  💳 Enregistrer un paiement
+                  💳 Paiement
+                </button>
+                <button onClick={() => setEditCard(card)} className="p-2 rounded-xl bg-[#27272a] text-[#a1a1aa]">
+                  <Pencil size={16} />
                 </button>
                 <button
                   onClick={async () => { if (confirm('Supprimer cette carte ?')) { await deleteCreditCard(card.id); refetch() } }}
@@ -199,6 +204,10 @@ export default function CreditCardsPage() {
                 <input placeholder="4 derniers chiffres" maxLength={4} value={form.last_four} onChange={e => setForm({ ...form, last_four: e.target.value })} />
                 <input type="number" placeholder="Limite ($)" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} />
               </div>
+              <div>
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Solde déjà utilisé avant l&apos;app ($)</label>
+                <input type="number" inputMode="decimal" placeholder="ex: 1680 (laisser vide si 0)" value={form.opening_balance} onChange={e => setForm({ ...form, opening_balance: e.target.value })} />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <input type="number" placeholder="Jour d'échéance" min={1} max={31} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
                 <label className="flex items-center gap-2 px-3 py-3 bg-[#27272a] rounded-xl cursor-pointer">
@@ -213,6 +222,15 @@ export default function CreditCardsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal édition carte */}
+      {editCard && (
+        <EditCardModal
+          card={editCard}
+          onClose={() => setEditCard(null)}
+          onSaved={() => { setEditCard(null); refetch() }}
+        />
       )}
 
       {/* Modal paiement */}
@@ -251,6 +269,67 @@ export default function CreditCardsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function EditCardModal({ card, onClose, onSaved }: { card: CreditCard; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    name: card.name,
+    last_four: card.last_four || '',
+    credit_limit: card.credit_limit ? String(card.credit_limit) : '',
+    opening_balance: card.opening_balance ? String(card.opening_balance) : '',
+    due_date: card.due_date ? String(card.due_date) : '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true); setError('')
+    try {
+      await updateCreditCard(card.id, {
+        name: form.name,
+        last_four: form.last_four || undefined,
+        credit_limit: form.credit_limit ? parseFloat(form.credit_limit) : undefined,
+        opening_balance: form.opening_balance ? parseFloat(form.opening_balance) : 0,
+        due_date: form.due_date ? parseInt(form.due_date) : undefined,
+      } as Partial<CreditCard>)
+      onSaved()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={onClose}>
+      <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-[#fafafa] mb-4">Modifier la carte</h3>
+        <form onSubmit={handleSave} className="space-y-3">
+          <input placeholder="Nom" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-2">
+            <input placeholder="4 derniers chiffres" maxLength={4} value={form.last_four} onChange={e => setForm({ ...form, last_four: e.target.value })} />
+            <input type="number" placeholder="Limite ($)" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} />
+          </div>
+          <div>
+            <label className="text-xs text-[#a1a1aa] mb-1 block">Solde déjà utilisé avant l&apos;app ($)</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="ex: 1680"
+              value={form.opening_balance}
+              onChange={e => setForm({ ...form, opening_balance: e.target.value })}
+            />
+            <p className="text-[11px] text-[#71717a] mt-1">Montant déjà sur la carte avant de commencer à utiliser l&apos;app</p>
+          </div>
+          <input type="number" placeholder="Jour d'échéance" min={1} max={31} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
+          {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
+          <button type="submit" disabled={loading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
+            {loading ? 'Sauvegarde...' : 'Sauvegarder'}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

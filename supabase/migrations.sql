@@ -62,6 +62,14 @@ USING (auth.uid() = user_id);
 
 
 -- ============================================================
+-- Migration 005 — Solde de départ sur les cartes de crédit
+-- ============================================================
+
+ALTER TABLE credit_cards
+  ADD COLUMN IF NOT EXISTS opening_balance DECIMAL(15, 2) DEFAULT 0;
+
+
+-- ============================================================
 -- Migration 002 — Envois en devises étrangères
 -- ============================================================
 

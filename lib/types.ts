@@ -74,6 +74,7 @@ export interface CreditCard {
   name: string
   last_four: string | null
   credit_limit: number | null
+  opening_balance: number | null
   due_date: number | null
   is_shared: boolean
   created_at: string

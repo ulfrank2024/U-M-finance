@@ -29,7 +29,8 @@ export async function GET() {
         .eq('credit_card_id', card.id)
         .eq('type', 'expense')
 
-      const totalSpent = (txs || []).reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0)
+      const txSpent    = (txs || []).reduce((sum: number, t: { amount: number }) => sum + Number(t.amount), 0)
+      const totalSpent = txSpent + Number(card.opening_balance || 0)
       const totalPaid  = (card.credit_card_payments || []).reduce((sum: number, p: { amount: number }) => sum + Number(p.amount), 0)
 
       return { ...card, total_spent: totalSpent, total_paid: totalPaid, current_balance: totalSpent - totalPaid }
@@ -45,15 +46,17 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { name, last_four, credit_limit, due_date, is_shared, owner_id } = await request.json()
+  const { name, last_four, credit_limit, opening_balance, due_date, is_shared, owner_id } = await request.json()
   if (!name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
 
   const { data, error } = await supabase
     .from('credit_cards')
     .insert({
-      name, last_four, credit_limit, due_date,
-      is_shared: is_shared || false,
-      owner_id:  is_shared ? null : (owner_id || user.id),
+      name, last_four, credit_limit,
+      opening_balance: opening_balance || 0,
+      due_date,
+      is_shared:  is_shared || false,
+      owner_id:   is_shared ? null : (owner_id || user.id),
       updated_by: user.id,
     })
     .select()

@@ -11,11 +11,11 @@ export async function PUT(
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { id } = await params
-  const { name, last_four, credit_limit, due_date, is_shared, owner_id } = await request.json()
+  const { name, last_four, credit_limit, opening_balance, due_date, is_shared, owner_id } = await request.json()
 
   const { data, error } = await supabase
     .from('credit_cards')
-    .update({ name, last_four, credit_limit, due_date, is_shared, owner_id, updated_by: user.id })
+    .update({ name, last_four, credit_limit, opening_balance, due_date, is_shared, owner_id, updated_by: user.id })
     .eq('id', id)
     .select()
     .single()
