@@ -24,6 +24,18 @@ ON CONFLICT (id) DO NOTHING;
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
+-- Politiques manquantes sur profiles
+DROP POLICY IF EXISTS "update_own_profile" ON profiles;
+CREATE POLICY "update_own_profile" ON profiles
+FOR UPDATE TO authenticated
+USING (auth.uid() = id)
+WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "select_profiles" ON profiles;
+CREATE POLICY "select_profiles" ON profiles
+FOR SELECT TO authenticated
+USING (auth.uid() IS NOT NULL);
+
 -- Politique INSERT transactions
 DROP POLICY IF EXISTS "insert_own_transactions" ON transactions;
 CREATE POLICY "insert_own_transactions" ON transactions
@@ -86,6 +98,23 @@ DROP POLICY IF EXISTS "Mise à jour avatar personnel" ON storage.objects;
 CREATE POLICY "Mise à jour avatar personnel"
   ON storage.objects FOR UPDATE TO authenticated
   USING (bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+
+-- ============================================================
+-- Migration 004b — Nettoyage des profils parasites
+-- Supprime les profils qui n'ont aucune transaction
+-- et qui ne sont pas les utilisateurs du couple
+-- ⚠️  Remplacez les deux UUIDs par les vôtres avant d'exécuter
+-- ============================================================
+
+-- DELETE FROM profiles
+-- WHERE id NOT IN (
+--   SELECT DISTINCT user_id FROM transactions
+-- )
+-- AND id NOT IN (
+--   'UUID-DE-ULRICH',   -- votre ID
+--   'UUID-DE-VOTRE-CHERIE'  -- son ID
+-- );
 
 
 -- ============================================================

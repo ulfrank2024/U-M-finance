@@ -37,9 +37,11 @@ export async function PUT(request: NextRequest) {
   if (avatar_color  !== undefined) updates.avatar_color  = avatar_color
   if (avatar_url    !== undefined) updates.avatar_url    = avatar_url
 
+  // UPDATE uniquement (le profil est toujours créé par le trigger à l'inscription)
   const { data, error } = await supabase
     .from('profiles')
-    .upsert(updates)
+    .update(updates)
+    .eq('id', user.id)
     .select()
     .single()
 
