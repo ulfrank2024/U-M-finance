@@ -1,13 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ArrowLeftRight, CreditCard, User, Plus } from 'lucide-react'
+import { Home, ArrowLeftRight, Wallet, User, Plus } from 'lucide-react'
 
 const tabs = [
   { href: '/',              icon: Home,           label: 'Accueil' },
   { href: '/transactions',  icon: ArrowLeftRight,  label: 'Transactions' },
   { href: '/transactions/new', icon: Plus,          label: '', fab: true },
-  { href: '/credit-cards',  icon: CreditCard,      label: 'Cartes' },
+  { href: '/accounts',      icon: Wallet,          label: 'Comptes' },
   { href: '/profile',       icon: User,            label: 'Profil' },
 ]
 

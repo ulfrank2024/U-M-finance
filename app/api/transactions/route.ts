@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
       profiles!transactions_user_id_fkey(id, display_name, avatar_color),
       updated_by_profile:profiles!transactions_updated_by_fkey(id, display_name, avatar_color),
       shared_groups(id, name),
-      credit_cards(id, name, last_four)
+      credit_cards(id, name, last_four),
+      bank_accounts(id, name, color)
     `)
     .order('created_at', { ascending: false })
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const body = await request.json()
-  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, exchange_rate, foreign_amount, foreign_currency, created_at } = body
+  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, bank_account_id, exchange_rate, foreign_amount, foreign_currency, created_at } = body
 
   if (!amount || !type || !['income', 'expense'].includes(type)) {
     return NextResponse.json({ error: 'Données invalides' }, { status: 400 })
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       scope:            scope || 'personal',
       shared_group_id:  shared_group_id || null,
       credit_card_id:   credit_card_id || null,
+      bank_account_id:  bank_account_id || null,
       ...(exchange_rate    != null ? { exchange_rate }    : {}),
       ...(foreign_amount   != null ? { foreign_amount }   : {}),
       ...(foreign_currency != null ? { foreign_currency } : {}),
@@ -86,7 +88,8 @@ export async function POST(request: NextRequest) {
       profiles!transactions_user_id_fkey(id, display_name, avatar_color),
       updated_by_profile:profiles!transactions_updated_by_fkey(id, display_name, avatar_color),
       shared_groups(id, name),
-      credit_cards(id, name, last_four)
+      credit_cards(id, name, last_four),
+      bank_accounts(id, name, color)
     `)
     .single()
 

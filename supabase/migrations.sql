@@ -129,6 +129,48 @@ CREATE POLICY "Mise à jour avatar personnel"
 -- Migration 004 — Correction du trigger de création de profil
 -- ============================================================
 
+-- ============================================================
+-- Migration 006 — Comptes bancaires (cartes de débit)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    UUID REFERENCES profiles(id),
+  name        TEXT NOT NULL,
+  color       TEXT DEFAULT '#6366f1',
+  is_shared   BOOLEAN DEFAULT false,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_by  UUID REFERENCES profiles(id)
+);
+
+ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "select_bank_accounts" ON bank_accounts;
+CREATE POLICY "select_bank_accounts" ON bank_accounts
+  FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "insert_bank_accounts" ON bank_accounts;
+CREATE POLICY "insert_bank_accounts" ON bank_accounts
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "update_bank_accounts" ON bank_accounts;
+CREATE POLICY "update_bank_accounts" ON bank_accounts
+  FOR UPDATE TO authenticated USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "delete_bank_accounts" ON bank_accounts;
+CREATE POLICY "delete_bank_accounts" ON bank_accounts
+  FOR DELETE TO authenticated USING (auth.uid() IS NOT NULL);
+
+-- Lien compte bancaire sur les transactions
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS bank_account_id UUID REFERENCES bank_accounts(id);
+
+
+-- ============================================================
+-- Migration 004 — Correction du trigger de création de profil
+-- ============================================================
+
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN

@@ -2,8 +2,8 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { fetchTransactions, updateTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards } from '@/lib/api'
-import type { Category, SharedGroup, CreditCard, Transaction } from '@/lib/types'
+import { fetchTransactions, updateTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts } from '@/lib/api'
+import type { Category, SharedGroup, CreditCard, BankAccount, Transaction } from '@/lib/types'
 
 export default function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -16,6 +16,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
   const [scope, setScope] = useState<'personal' | 'common' | 'shared'>('personal')
   const [sharedGroupId, setSharedGroupId] = useState('')
   const [creditCardId, setCreditCardId] = useState('')
+  const [bankAccountId, setBankAccountId] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash')
   const [date, setDate] = useState('')
   const [isTransfer, setIsTransfer] = useState(false)
   const [foreignCurrency, setForeignCurrency] = useState('XAF')
@@ -28,6 +30,7 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
   const [categories, setCategories] = useState<Category[]>([])
   const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([])
   const [creditCards, setCreditCards] = useState<CreditCard[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -35,7 +38,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
       fetchCategories(),
       fetchSharedGroups(),
       fetchCreditCards(),
-    ]).then(([txs, cats, groups, cards]) => {
+      fetchBankAccounts(),
+    ]).then(([txs, cats, groups, cards, accounts]) => {
       const found = (txs as Transaction[]).find(t => t.id === id)
       if (found) {
         setTx(found)
@@ -46,7 +50,11 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
         setScope(found.scope)
         setSharedGroupId(found.shared_group_id || '')
         setCreditCardId(found.credit_card_id || '')
+        setBankAccountId(found.bank_account_id || '')
         setDate(found.created_at.split('T')[0])
+        if (found.credit_card_id) setPaymentMethod('credit')
+        else if (found.bank_account_id && found.type === 'expense') setPaymentMethod('debit')
+        else setPaymentMethod('cash')
         if (found.exchange_rate) {
           setIsTransfer(true)
           setExchangeRate(String(found.exchange_rate))
@@ -56,8 +64,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
       }
       setCategories(cats)
       setSharedGroups(groups)
-      setCategories(cats)
       setCreditCards(cards)
+      setBankAccounts(accounts as BankAccount[])
       setLoading(false)
     })
   }, [id])
@@ -76,7 +84,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
         type,
         scope,
         shared_group_id: scope === 'shared' ? sharedGroupId || undefined : undefined,
-        credit_card_id: creditCardId || undefined,
+        credit_card_id: (type === 'expense' && paymentMethod === 'credit') ? creditCardId || undefined : undefined,
+        bank_account_id: (paymentMethod === 'debit' || type === 'income') ? bankAccountId || undefined : undefined,
         exchange_rate: rate,
         foreign_amount: foreignAmt,
         foreign_currency: isTransfer ? foreignCurrency : null,
@@ -179,14 +188,48 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
           </div>
         )}
 
-        {type === 'expense' && creditCards.length > 0 && (
+        {/* Mode de paiement */}
+        {type === 'expense' ? (
           <div>
-            <label className="text-xs text-[#a1a1aa] mb-1 block">Carte de crédit</label>
-            <select value={creditCardId} onChange={e => setCreditCardId(e.target.value)}>
-              <option value="">Paiement direct</option>
-              {creditCards.map(c => <option key={c.id} value={c.id}>{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</option>)}
-            </select>
+            <label className="text-xs text-[#a1a1aa] mb-2 block">Mode de paiement</label>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {([
+                { key: 'cash',   label: '💵 Comptant' },
+                { key: 'debit',  label: '🏦 Débit' },
+                { key: 'credit', label: '💳 Crédit' },
+              ] as { key: 'cash'|'debit'|'credit'; label: string }[]).map(m => (
+                <button key={m.key} type="button"
+                  onClick={() => { setPaymentMethod(m.key); if (m.key !== 'credit') setCreditCardId(''); if (m.key !== 'debit') setBankAccountId('') }}
+                  className={`h-10 rounded-xl text-xs font-medium transition-all ${paymentMethod === m.key ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'}`}
+                  style={paymentMethod === m.key ? btnStyle : {}}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {paymentMethod === 'debit' && bankAccounts.length > 0 && (
+              <select value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}>
+                <option value="">Choisir un compte</option>
+                {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            )}
+            {paymentMethod === 'credit' && creditCards.length > 0 && (
+              <select value={creditCardId} onChange={e => setCreditCardId(e.target.value)}>
+                <option value="">Choisir une carte</option>
+                {creditCards.map(c => <option key={c.id} value={c.id}>{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</option>)}
+              </select>
+            )}
           </div>
+        ) : (
+          bankAccounts.length > 0 && (
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Compte crédité</label>
+              <select value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}>
+                <option value="">Sélectionner un compte</option>
+                {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )
         )}
 
         <div>

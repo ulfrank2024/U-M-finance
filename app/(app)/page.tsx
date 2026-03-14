@@ -1,9 +1,10 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
+import { Wallet, CreditCard } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
-import { formatMonth } from '@/lib/utils'
-import type { BalanceResponse, Transaction, Project } from '@/lib/types'
+import { formatMonth, formatCurrency } from '@/lib/utils'
+import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
 import TransactionCard from '@/components/TransactionCard'
 import ProjectCard from '@/components/ProjectCard'
@@ -16,9 +17,12 @@ export default function DashboardPage() {
   const { data: balance, loading: bLoading } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const { data: transactions } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
   const { data: projects } = useFetch<Project[]>('/api/projects')
+  const { data: bankAccounts } = useFetch<BankAccount[]>('/api/bank-accounts')
+  const { data: creditCards } = useFetch<CreditCardType[]>('/api/credit-cards')
 
   const recent = (transactions || []).slice(0, 5)
   const activeProjects = (projects || []).filter(p => p.status === 'active').slice(0, 3)
+  const totalCardDebt = (creditCards || []).reduce((s, c) => s + Math.max(0, c.current_balance), 0)
 
   return (
     <div className="px-4 pt-6 pb-4 space-y-5">
@@ -54,6 +58,59 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Comptes bancaires */}
+      {(bankAccounts || []).length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-[#fafafa]">Comptes bancaires</h2>
+            <Link href="/accounts" className="text-xs text-[#e879f9]">Gérer</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {(bankAccounts || []).map(acc => (
+              <div key={acc.id} className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${acc.color}25` }}>
+                    <Wallet size={14} style={{ color: acc.color }} />
+                  </div>
+                  <span className="text-xs font-medium text-[#fafafa] truncate">{acc.name}</span>
+                </div>
+                <p className={`text-sm font-bold ${acc.balance >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                  {formatCurrency(acc.balance)}
+                </p>
+                <p className="text-[10px] text-[#71717a] mt-0.5">solde</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Cartes de crédit - résumé */}
+      {(creditCards || []).length > 0 && totalCardDebt > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
+            <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
+          </div>
+          <div className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
+            <div className="grid grid-cols-2 gap-2">
+              {(creditCards || []).filter(c => c.current_balance > 0).slice(0, 4).map(c => (
+                <div key={c.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard size={12} className="text-[#e879f9] flex-shrink-0" />
+                    <span className="text-[11px] text-[#a1a1aa] truncate">{c.name}</span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(c.current_balance)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 pt-2 border-t border-[#3f3f46] flex justify-between items-center">
+              <span className="text-xs text-[#a1a1aa]">Total dû</span>
+              <span className="text-sm font-bold text-[#ef4444]">{formatCurrency(totalCardDebt)}</span>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Projets */}

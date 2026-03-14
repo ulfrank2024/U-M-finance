@@ -1,5 +1,5 @@
 import type {
-  BalanceResponse, Category, CreditCard, CreditCardPayment,
+  BankAccount, BalanceResponse, Category, CreditCard, CreditCardPayment,
   Profile, Project, ProjectContribution, SharedGroup, Transaction
 } from './types'
 
@@ -69,6 +69,15 @@ export const deleteProject = (id: string) =>
   req<{ success: boolean }>(`/api/projects/${id}`, { method: 'DELETE' })
 export const addContribution = (projectId: string, body: { amount: number; note?: string }) =>
   req<ProjectContribution>(`/api/projects/${projectId}/contributions`, { method: 'POST', body: JSON.stringify(body) })
+
+// Bank Accounts
+export const fetchBankAccounts = () => req<BankAccount[]>('/api/bank-accounts')
+export const createBankAccount = (body: { name: string; color?: string; is_shared?: boolean; owner_id?: string }) =>
+  req<BankAccount>('/api/bank-accounts', { method: 'POST', body: JSON.stringify(body) })
+export const updateBankAccount = (id: string, body: Partial<BankAccount>) =>
+  req<BankAccount>(`/api/bank-accounts/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+export const deleteBankAccount = (id: string) =>
+  req<{ success: boolean }>(`/api/bank-accounts/${id}`, { method: 'DELETE' })
 
 // Profile
 export const fetchProfile = () => req<Profile>('/api/profile')

@@ -9,9 +9,10 @@ interface Props {
 }
 
 export default function TransactionCard({ transaction, onDelete }: Props) {
-  const { amount, description, type, scope, categories, profiles, updated_by_profile } = transaction
+  const { amount, description, type, scope, categories, profiles, updated_by_profile, credit_cards, bank_accounts } = transaction
   const isIncome = type === 'income'
   const displayProfile = updated_by_profile || profiles
+  const paymentLabel = credit_cards ? `💳 ${credit_cards.name}` : bank_accounts ? `🏦 ${bank_accounts.name}` : null
 
   return (
     <div className="flex items-center gap-3 p-3 rounded-2xl bg-[#18181b] border border-[#3f3f46]">
@@ -28,12 +29,15 @@ export default function TransactionCard({ transaction, onDelete }: Props) {
         <p className="text-sm font-medium text-[#fafafa] truncate">
           {description || categories?.name || (isIncome ? 'Revenu' : 'Dépense')}
         </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {categories && (
             <span className="text-[11px] text-[#a1a1aa]">{categories.name}</span>
           )}
           {scope !== 'personal' && (
             <Badge variant={scope as 'common' | 'shared'} />
+          )}
+          {paymentLabel && (
+            <span className="text-[10px] text-[#71717a] bg-[#27272a] px-1.5 py-0.5 rounded-full">{paymentLabel}</span>
           )}
         </div>
       </div>

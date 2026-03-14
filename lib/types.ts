@@ -31,6 +31,7 @@ export interface Transaction {
   scope: TransactionScope
   shared_group_id: string | null
   credit_card_id: string | null
+  bank_account_id: string | null
   exchange_rate: number | null
   foreign_amount: number | null
   foreign_currency: string | null
@@ -43,6 +44,7 @@ export interface Transaction {
   updated_by_profile?: Profile | null
   shared_groups?: SharedGroup | null
   credit_cards?: CreditCard | null
+  bank_accounts?: BankAccount | null
 }
 
 export interface SharedGroup {
@@ -55,6 +57,22 @@ export interface SharedGroup {
   updated_at: string
   created_by_profile?: Profile | null
   transactions?: Transaction[]
+}
+
+export interface BankAccount {
+  id: string
+  owner_id: string | null
+  name: string
+  color: string
+  is_shared: boolean
+  created_at: string
+  updated_at: string
+  updated_by: string | null
+  // Calculé par l'API
+  balance: number
+  total_income: number
+  total_expenses: number
+  owner?: Profile | null
 }
 
 export interface CreditCardPayment {

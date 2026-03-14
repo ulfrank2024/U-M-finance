@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards } from '@/lib/api'
-import type { Category, SharedGroup, CreditCard } from '@/lib/types'
+import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts } from '@/lib/api'
+import type { Category, SharedGroup, CreditCard, BankAccount } from '@/lib/types'
 
 type TxType = 'expense' | 'income'
 type TxScope = 'personal' | 'common' | 'shared'
@@ -17,6 +17,8 @@ export default function NewTransactionPage() {
   const [categoryId, setCategoryId] = useState('')
   const [sharedGroupId, setSharedGroupId] = useState('')
   const [creditCardId, setCreditCardId] = useState('')
+  const [bankAccountId, setBankAccountId] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [isTransfer, setIsTransfer] = useState(false)
   const [foreignCurrency, setForeignCurrency] = useState('XAF')
@@ -28,11 +30,13 @@ export default function NewTransactionPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([])
   const [creditCards, setCreditCards] = useState<CreditCard[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => {})
     fetchSharedGroups().then(setSharedGroups).catch(() => {})
     fetchCreditCards().then(setCreditCards).catch(() => {})
+    fetchBankAccounts().then(setBankAccounts).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -53,7 +57,8 @@ export default function NewTransactionPage() {
         type,
         scope,
         shared_group_id: scope === 'shared' ? sharedGroupId || undefined : undefined,
-        credit_card_id: creditCardId || undefined,
+        credit_card_id: (type === 'expense' && paymentMethod === 'credit') ? creditCardId || undefined : undefined,
+        bank_account_id: (paymentMethod === 'debit' || type === 'income') ? bankAccountId || undefined : undefined,
         exchange_rate: rate ?? undefined,
         foreign_amount: foreignAmt ?? undefined,
         foreign_currency: isTransfer ? foreignCurrency : undefined,
@@ -172,15 +177,49 @@ export default function NewTransactionPage() {
           </div>
         )}
 
-        {/* Carte de crédit */}
-        {type === 'expense' && creditCards.length > 0 && (
+        {/* Mode de paiement */}
+        {type === 'expense' ? (
           <div>
-            <label className="text-xs text-[#a1a1aa] mb-1 block">Carte de crédit (optionnel)</label>
-            <select value={creditCardId} onChange={e => setCreditCardId(e.target.value)}>
-              <option value="">Paiement direct</option>
-              {creditCards.map(c => <option key={c.id} value={c.id}>{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</option>)}
-            </select>
+            <label className="text-xs text-[#a1a1aa] mb-2 block">Mode de paiement</label>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {([
+                { key: 'cash',   label: '💵 Comptant' },
+                { key: 'debit',  label: '🏦 Débit' },
+                { key: 'credit', label: '💳 Crédit' },
+              ] as { key: 'cash'|'debit'|'credit'; label: string }[]).map(m => (
+                <button key={m.key} type="button"
+                  onClick={() => { setPaymentMethod(m.key); if (m.key !== 'credit') setCreditCardId(''); if (m.key !== 'debit') setBankAccountId('') }}
+                  className={`h-10 rounded-xl text-xs font-medium transition-all ${paymentMethod === m.key ? 'text-white' : 'bg-[#27272a] text-[#a1a1aa]'}`}
+                  style={paymentMethod === m.key ? btnStyle : {}}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {paymentMethod === 'debit' && bankAccounts.length > 0 && (
+              <select value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}>
+                <option value="">Choisir un compte</option>
+                {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            )}
+            {paymentMethod === 'credit' && creditCards.length > 0 && (
+              <select value={creditCardId} onChange={e => setCreditCardId(e.target.value)}>
+                <option value="">Choisir une carte</option>
+                {creditCards.map(c => <option key={c.id} value={c.id}>{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</option>)}
+              </select>
+            )}
           </div>
+        ) : (
+          /* Revenu : compte crédité */
+          bankAccounts.length > 0 && (
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Compte crédité</label>
+              <select value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}>
+                <option value="">Sélectionner un compte</option>
+                {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+          )
         )}
 
         {/* Date */}
