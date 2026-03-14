@@ -117,14 +117,15 @@ export default function CategoriesPage() {
                   value={form.icon}
                   onChange={e => setForm({ ...form, icon: e.target.value })}
                   placeholder="🏷️"
-                  className="w-16 text-center text-xl"
+                  className="text-center text-xl"
+                  style={{ width: '3.5rem', flexShrink: 0 }}
                 />
                 <input
                   value={form.name}
                   onChange={e => setForm({ ...form, name: e.target.value })}
                   placeholder="Nom de la catégorie"
                   required
-                  className="flex-1"
+                  style={{ flex: 1, minWidth: 0 }}
                 />
               </div>
               <div>
