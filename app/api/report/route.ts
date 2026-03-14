@@ -8,11 +8,10 @@ export async function GET(request: NextRequest) {
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const month = searchParams.get('month') || new Date().toISOString().slice(0, 7) // '2026-03'
+  const month = searchParams.get('month') || new Date().toISOString().slice(0, 7)
 
   const admin = createAdminClient()
 
-  // Helper pour les bornes d'un mois
   function monthBounds(m: string) {
     const [year, mo] = m.split('-').map(Number)
     return {
@@ -74,20 +73,57 @@ export async function GET(request: NextRequest) {
   const savings = income - fixed_expenses - variable_expenses
   const savings_rate = income > 0 ? Math.round((savings / income) * 100) : 0
 
-  // 4. Dette cartes de crédit (totale, non mensuelle)
-  const { data: cardTxs } = await admin
+  // 4. Cartes de crédit — détail par carte
+  const { data: allCards } = await admin
+    .from('credit_cards')
+    .select('id, name, last_four, credit_limit, opening_balance, is_shared, owner_id, owner:profiles!credit_cards_owner_id_fkey(id, display_name, avatar_color)')
+    .order('created_at', { ascending: true })
+
+  const { data: allCardTxs } = await admin
     .from('transactions')
-    .select('amount')
+    .select('credit_card_id, amount')
     .eq('type', 'expense')
     .not('credit_card_id', 'is', null)
 
-  const { data: cardPayments } = await admin
+  const { data: allCardPayments } = await admin
     .from('credit_card_payments')
-    .select('amount')
+    .select('credit_card_id, amount, payment_date')
 
-  const totalCardSpent = (cardTxs || []).reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
-  const totalCardPaid = (cardPayments || []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
-  const card_debt = Math.max(0, totalCardSpent - totalCardPaid)
+  const cards_detail = (allCards || []).map((card: {
+    id: string; name: string; last_four: string | null; credit_limit: number | null
+    opening_balance: number | null; is_shared: boolean; owner_id: string | null
+    owner: { id: string; display_name: string; avatar_color: string } | null
+  }) => {
+    const cardTxsForCard = (allCardTxs || []).filter((t: { credit_card_id: string }) => t.credit_card_id === card.id)
+    const totalSpent = cardTxsForCard.reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
+      + Number(card.opening_balance || 0)
+
+    const allPaymentsForCard = (allCardPayments || []).filter((p: { credit_card_id: string }) => p.credit_card_id === card.id)
+    const totalPaid = allPaymentsForCard.reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
+
+    // Paiements effectués CE mois-ci
+    const monthPayments = allPaymentsForCard.filter((p: { payment_date: string }) =>
+      p.payment_date >= start && p.payment_date <= end
+    )
+    const paid_this_month = monthPayments.reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
+
+    const current_balance = Math.max(0, totalSpent - totalPaid)
+
+    return {
+      id: card.id,
+      name: card.name,
+      last_four: card.last_four,
+      credit_limit: card.credit_limit,
+      is_shared: card.is_shared,
+      owner: card.owner,
+      total_spent: totalSpent,
+      total_paid: totalPaid,
+      current_balance,
+      paid_this_month,
+    }
+  })
+
+  const card_debt = cards_detail.reduce((s: number, c: { current_balance: number }) => s + c.current_balance, 0)
 
   // 5. Tendance 6 derniers mois
   const trend: { month: string; income: number; expenses: number }[] = []
@@ -110,6 +146,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     month, income, fixed_expenses, variable_expenses, savings, savings_rate,
-    card_debt, fixed_breakdown, variable_breakdown, trend,
+    card_debt, cards_detail, fixed_breakdown, variable_breakdown, trend,
   })
 }

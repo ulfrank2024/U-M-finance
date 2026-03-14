@@ -3,8 +3,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
-import type { ReportData } from '@/lib/types'
+import type { ReportData, ReportCardDetail } from '@/lib/types'
 import MonthPicker from '@/components/ui/MonthPicker'
+import Avatar from '@/components/ui/Avatar'
 
 const MONTH_SHORT: Record<string, string> = {
   '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Jun',
@@ -139,18 +140,100 @@ export default function ReportPage() {
             </section>
           )}
 
-          {/* Dette carte */}
-          {data.card_debt > 0 && (
+          {/* Cartes de crédit — détail */}
+          {(data.cards_detail || []).length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold text-[#fafafa] mb-2">💳 Dette cartes de crédit</h2>
-              <div className="bg-[#18181b] rounded-2xl p-4 border border-[#ef4444]/30 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-[#a1a1aa]">Total dû (toutes cartes)</p>
-                  <p className="text-xl font-bold text-[#ef4444]">{formatCurrency(data.card_debt)}</p>
-                </div>
-                <Link href="/credit-cards" className="text-xs text-[#e879f9] bg-[#e879f9]/10 px-3 py-1.5 rounded-xl">
-                  Gérer →
-                </Link>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold text-[#fafafa]">💳 Cartes de crédit</h2>
+                <Link href="/credit-cards" className="text-xs text-[#e879f9]">Gérer →</Link>
+              </div>
+              <div className="space-y-3">
+                {data.cards_detail.map((card: ReportCardDetail) => {
+                  const pct = card.credit_limit && card.credit_limit > 0
+                    ? Math.min(100, (card.current_balance / card.credit_limit) * 100)
+                    : null
+                  const isOverLimit = card.credit_limit != null && card.current_balance > card.credit_limit
+                  return (
+                    <div key={card.id} className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46] space-y-3">
+                      {/* En-tête carte */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">💳</span>
+                          <div>
+                            <p className="text-sm font-semibold text-[#fafafa]">
+                              {card.name}{card.last_four ? ` ••${card.last_four}` : ''}
+                            </p>
+                            {card.owner && !card.is_shared && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Avatar displayName={card.owner.display_name} color={card.owner.avatar_color} size="xs" />
+                                <span className="text-[11px] text-[#a1a1aa]">{card.owner.display_name}</span>
+                              </div>
+                            )}
+                            {card.is_shared && <span className="text-[11px] text-[#818cf8]">💑 Commune</span>}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-lg font-bold ${card.current_balance > 0 ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+                            {formatCurrency(card.current_balance)}
+                          </p>
+                          <p className="text-[11px] text-[#71717a]">solde dû</p>
+                        </div>
+                      </div>
+
+                      {/* Barre utilisation limite */}
+                      {pct !== null && (
+                        <div>
+                          <div className="flex justify-between text-[11px] mb-1">
+                            <span className="text-[#a1a1aa]">Utilisation</span>
+                            <span className={isOverLimit ? 'text-[#ef4444] font-semibold' : 'text-[#a1a1aa]'}>
+                              {Math.round(pct)}% {isOverLimit && '⚠️ Limite dépassée'}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: pct > 90 ? '#ef4444' : pct > 70 ? '#f97316' : '#22c55e',
+                              }}
+                            />
+                          </div>
+                          {card.credit_limit && (
+                            <p className="text-[10px] text-[#71717a] mt-0.5">
+                              Limite : {formatCurrency(card.credit_limit)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Ligne dépenses vs remboursements */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#27272a]">
+                        <div className="text-center">
+                          <p className="text-[10px] text-[#a1a1aa] mb-0.5">Total dépensé</p>
+                          <p className="text-xs font-semibold text-[#ef4444]">{formatCurrency(card.total_spent)}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-[#a1a1aa] mb-0.5">Remb. ce mois</p>
+                          <p className={`text-xs font-semibold ${card.paid_this_month > 0 ? 'text-[#22c55e]' : 'text-[#71717a]'}`}>
+                            {card.paid_this_month > 0 ? formatCurrency(card.paid_this_month) : '—'}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-[#a1a1aa] mb-0.5">Total remb.</p>
+                          <p className="text-xs font-semibold text-[#22c55e]">{formatCurrency(card.total_paid)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Total global */}
+                {data.card_debt > 0 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-[#ef4444]/10 rounded-2xl border border-[#ef4444]/30">
+                    <span className="text-sm text-[#fafafa] font-medium">Total dû (toutes cartes)</span>
+                    <span className="text-lg font-bold text-[#ef4444]">{formatCurrency(data.card_debt)}</span>
+                  </div>
+                )}
               </div>
             </section>
           )}

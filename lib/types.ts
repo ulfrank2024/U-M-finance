@@ -164,6 +164,19 @@ export interface BalanceResponse {
   }
 }
 
+export interface ReportCardDetail {
+  id: string
+  name: string
+  last_four: string | null
+  credit_limit: number | null
+  is_shared: boolean
+  owner: { id: string; display_name: string; avatar_color: string } | null
+  total_spent: number
+  total_paid: number
+  current_balance: number
+  paid_this_month: number
+}
+
 export interface ReportData {
   month: string
   income: number
@@ -172,6 +185,7 @@ export interface ReportData {
   savings: number
   savings_rate: number
   card_debt: number
+  cards_detail: ReportCardDetail[]
   fixed_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
   variable_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
   trend: { month: string; income: number; expenses: number }[]
