@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const { data: allCats } = await admin.from('categories').select('id, name, icon, color, is_fixed')
 
   const catMap = new Map<string, { name: string; icon: string; color: string; is_fixed: boolean }>(
-    (allCats || []).map(c => [c.id, c])
+    (allCats || []).map((c: { id: string; name: string; icon: string; color: string; is_fixed: boolean }) => [c.id, c])
   )
 
   // 3. Calcul income / dépenses
@@ -85,8 +85,8 @@ export async function GET(request: NextRequest) {
     .from('credit_card_payments')
     .select('amount')
 
-  const totalCardSpent = (cardTxs || []).reduce((s, t) => s + Number(t.amount), 0)
-  const totalCardPaid = (cardPayments || []).reduce((s, p) => s + Number(p.amount), 0)
+  const totalCardSpent = (cardTxs || []).reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
+  const totalCardPaid = (cardPayments || []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
   const card_debt = Math.max(0, totalCardSpent - totalCardPaid)
 
   // 5. Tendance 6 derniers mois
@@ -103,8 +103,8 @@ export async function GET(request: NextRequest) {
       .select('amount, type')
       .gte('created_at', s)
       .lte('created_at', e)
-    const mi = (mtxs || []).filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-    const me = (mtxs || []).filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const mi = (mtxs || []).filter((t: { type: string; amount: number }) => t.type === 'income').reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
+    const me = (mtxs || []).filter((t: { type: string; amount: number }) => t.type === 'expense').reduce((s: number, t: { amount: number }) => s + Number(t.amount), 0)
     trend.push({ month: mm, income: mi, expenses: me })
   }
 
