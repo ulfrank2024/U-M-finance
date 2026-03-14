@@ -32,7 +32,7 @@ export async function POST(
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { id } = await params
-  const { amount, note, payment_date } = await request.json()
+  const { amount, note, payment_date, bank_account_id } = await request.json()
 
   if (!amount) return NextResponse.json({ error: 'Le montant est requis' }, { status: 400 })
 
@@ -44,6 +44,7 @@ export async function POST(
       amount: parseFloat(amount),
       note,
       payment_date: payment_date || new Date().toISOString().split('T')[0],
+      bank_account_id: bank_account_id || null,
     })
     .select(`*, profiles!credit_card_payments_user_id_fkey(id, display_name, avatar_color)`)
     .single()

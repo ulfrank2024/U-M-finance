@@ -29,10 +29,22 @@ export async function GET() {
         .eq('bank_account_id', account.id)
         .eq('type', 'expense')
 
-      const total_income   = (incomeTxs || []).reduce((s, t) => s + Number(t.amount), 0)
-      const total_expenses = (expenseTxs || []).reduce((s, t) => s + Number(t.amount), 0)
+      // Paiements de carte de crédit prélevés sur ce compte
+      const { data: cardPayments } = await supabase
+        .from('credit_card_payments')
+        .select('amount')
+        .eq('bank_account_id', account.id)
 
-      return { ...account, total_income, total_expenses, balance: total_income - total_expenses }
+      const total_income        = (incomeTxs || []).reduce((s, t) => s + Number(t.amount), 0)
+      const total_expenses      = (expenseTxs || []).reduce((s, t) => s + Number(t.amount), 0)
+      const total_card_payments = (cardPayments || []).reduce((s, p) => s + Number(p.amount), 0)
+
+      return {
+        ...account,
+        total_income,
+        total_expenses: total_expenses + total_card_payments,
+        balance: total_income - total_expenses - total_card_payments,
+      }
     })
   )
 

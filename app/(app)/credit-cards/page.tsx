@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react'
 import { Plus, X, CreditCard as CardIcon, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
-import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard, deleteCardPayment } from '@/lib/api'
+import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard, deleteCardPayment, fetchBankAccounts } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { CreditCard } from '@/lib/types'
+import type { CreditCard, BankAccount } from '@/lib/types'
 import CreditCardWidget from '@/components/CreditCardWidget'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
@@ -20,6 +20,8 @@ export default function CreditCardsPage() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
+  const [paymentAccountId, setPaymentAccountId] = useState('')
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState('')
   const [addLoading, setAddLoading] = useState(false)
@@ -32,6 +34,7 @@ export default function CreditCardsPage() {
     createClient().auth.getUser().then(({ data: { user } }) => {
       if (user) setMeId(user.id)
     })
+    fetchBankAccounts().then(setBankAccounts).catch(() => {})
   }, [])
 
   async function handleAddCard(e: React.FormEvent) {
@@ -63,9 +66,11 @@ export default function CreditCardsPage() {
         amount: parseFloat(paymentAmount),
         note: paymentNote || undefined,
         payment_date: paymentDate,
+        bank_account_id: paymentAccountId || undefined,
       })
       setSelectedCard(null); setPaymentAmount(''); setPaymentNote('')
       setPaymentDate(new Date().toISOString().split('T')[0])
+      setPaymentAccountId('')
       refetch()
     } catch (err: unknown) {
       setPayError(err instanceof Error ? err.message : 'Erreur')
@@ -297,6 +302,15 @@ export default function CreditCardsPage() {
                 <label className="text-xs text-[#a1a1aa] mb-1 block">Date du paiement</label>
                 <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
               </div>
+              {bankAccounts.length > 0 && (
+                <div>
+                  <label className="text-xs text-[#a1a1aa] mb-1 block">Compte débité (source du paiement)</label>
+                  <select value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)}>
+                    <option value="">Sélectionner un compte</option>
+                    {bankAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              )}
               <input placeholder="Note (ex: paiement minimum, solde complet…)" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
               {payError && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{payError}</p>}
               <button type="submit" disabled={payLoading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>

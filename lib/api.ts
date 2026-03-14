@@ -54,7 +54,7 @@ export const updateCreditCard = (id: string, body: Partial<CreditCard>) =>
   req<CreditCard>(`/api/credit-cards/${id}`, { method: 'PUT', body: JSON.stringify(body) })
 export const deleteCreditCard = (id: string) =>
   req<{ success: boolean }>(`/api/credit-cards/${id}`, { method: 'DELETE' })
-export const addCardPayment = (cardId: string, body: { amount: number; note?: string; payment_date?: string }) =>
+export const addCardPayment = (cardId: string, body: { amount: number; note?: string; payment_date?: string; bank_account_id?: string }) =>
   req<CreditCardPayment>(`/api/credit-cards/${cardId}/payments`, { method: 'POST', body: JSON.stringify(body) })
 export const deleteCardPayment = (cardId: string, paymentId: string) =>
   req<{ success: boolean }>(`/api/credit-cards/${cardId}/payments/${paymentId}`, { method: 'DELETE' })
