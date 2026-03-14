@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, display_name, email, avatar_color')
+    .select('id, display_name, email, avatar_color, avatar_url')
     .in('id', activeIds)
 
   // Filtre de date
@@ -66,13 +66,14 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const summary = (profiles || []).map((p: { id: string; display_name: string; email: string; avatar_color: string }) => {
+  const summary = (profiles || []).map((p: { id: string; display_name: string; email: string; avatar_color: string; avatar_url: string | null }) => {
     const t = totals[p.id] || { income: 0, personal_expenses: 0, common_expenses: 0, shared_expenses: 0 }
     const total_expenses = t.personal_expenses + t.common_expenses + t.shared_expenses
     return {
       user_id:          p.id,
       display_name:     p.display_name || p.email,
       avatar_color:     p.avatar_color,
+      avatar_url:       p.avatar_url || null,
       income:           t.income,
       personal_expenses:t.personal_expenses,
       common_expenses:  t.common_expenses,

@@ -19,7 +19,7 @@ export default function BalanceCard({ data }: Props) {
         {summary.map((p) => (
           <div key={p.user_id} className="bg-[#27272a]/60 rounded-xl p-3">
             <div className="flex items-center gap-2 mb-2">
-              <Avatar displayName={p.display_name} color={p.avatar_color} size="sm" />
+              <Avatar displayName={p.display_name} color={p.avatar_color} avatarUrl={p.avatar_url} size="sm" />
               <span className="text-sm font-medium text-[#fafafa] truncate">{p.display_name}</span>
             </div>
             <div className="space-y-1">

@@ -84,6 +84,7 @@ export default function SharedGroupsPage() {
                       <Avatar
                         displayName={group.created_by_profile.display_name}
                         color={group.created_by_profile.avatar_color}
+                        avatarUrl={group.created_by_profile.avatar_url}
                         size="xs"
                       />
                     )}

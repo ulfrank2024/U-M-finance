@@ -120,6 +120,7 @@ export interface BalanceSummary {
   user_id: string
   display_name: string
   avatar_color: string
+  avatar_url: string | null
   income: number
   personal_expenses: number
   common_expenses: number

@@ -23,7 +23,7 @@ export default function CreditCardWidget({ card }: Props) {
         {is_shared ? (
           <span className="text-[10px] bg-[#818cf8]/20 text-[#818cf8] px-2 py-0.5 rounded-full">Commune</span>
         ) : owner ? (
-          <Avatar displayName={owner.display_name} color={owner.avatar_color} size="xs" />
+          <Avatar displayName={owner.display_name} color={owner.avatar_color} avatarUrl={owner.avatar_url} size="xs" />
         ) : null}
       </div>
 

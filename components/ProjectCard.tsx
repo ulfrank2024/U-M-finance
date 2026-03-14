@@ -40,6 +40,7 @@ export default function ProjectCard({ project }: Props) {
               key={c.id}
               displayName={c.profiles.display_name}
               color={c.profiles.avatar_color}
+              avatarUrl={c.profiles.avatar_url}
               size="xs"
             />
           ))}

@@ -48,6 +48,7 @@ export default function TransactionCard({ transaction, onDelete }: Props) {
             displayName={displayProfile.display_name}
             email={displayProfile.email}
             color={displayProfile.avatar_color}
+            avatarUrl={displayProfile.avatar_url}
             size="xs"
           />
         )}
