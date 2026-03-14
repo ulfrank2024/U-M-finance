@@ -30,11 +30,16 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { display_name } = body
+  const { display_name, avatar_color, avatar_url } = body
+
+  const updates: Record<string, unknown> = { id: user.id, email: user.email }
+  if (display_name !== undefined) updates.display_name = display_name
+  if (avatar_color  !== undefined) updates.avatar_color  = avatar_color
+  if (avatar_url    !== undefined) updates.avatar_url    = avatar_url
 
   const { data, error } = await supabase
     .from('profiles')
-    .upsert({ id: user.id, email: user.email, display_name })
+    .upsert(updates)
     .select()
     .single()
 

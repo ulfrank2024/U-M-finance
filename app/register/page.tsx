@@ -1,15 +1,26 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Camera } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -25,12 +36,26 @@ export default function RegisterPage() {
     })
     if (err) { setError(err.message); setLoading(false); return }
 
-    // Si email confirmation désactivé → session immédiate, on sauvegarde le nom
-    if (data.session) {
+    if (data.session && data.user) {
+      let avatarUrl: string | null = null
+
+      // Upload photo si sélectionnée
+      if (photoFile) {
+        const ext = photoFile.name.split('.').pop()
+        const path = `${data.user.id}/avatar.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('avatars')
+          .upload(path, photoFile, { upsert: true })
+        if (!upErr) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+          avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`
+        }
+      }
+
       await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display_name: form.name }),
+        body: JSON.stringify({ display_name: form.name, avatar_url: avatarUrl }),
       })
       window.location.href = '/'
       return
@@ -65,6 +90,32 @@ export default function RegisterPage() {
         <div className="bg-[#18181b] rounded-2xl p-6 border border-[#3f3f46]">
           <h2 className="text-lg font-semibold text-[#fafafa] mb-4">Inscription</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Photo de profil */}
+            <div className="flex flex-col items-center gap-2 pb-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-[#3f3f46] flex items-center justify-center transition-colors hover:border-[#e879f9]"
+                style={photoPreview ? {} : {}}
+              >
+                {photoPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoPreview} alt="Aperçu" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1">
+                    <Camera size={22} className="text-[#a1a1aa]" />
+                    <span className="text-[10px] text-[#71717a]">Photo</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <Camera size={18} className="text-white" />
+                </div>
+              </button>
+              <span className="text-[11px] text-[#71717a]">Photo de profil (optionnel)</span>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoSelect} />
+            </div>
+
             <div>
               <label className="text-xs text-[#a1a1aa] mb-1 block">Prénom Nom</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ulrich Lontsi" required />
