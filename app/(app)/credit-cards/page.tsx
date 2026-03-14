@@ -105,15 +105,16 @@ export default function CreditCardsPage() {
                 <button onClick={() => setSelectedCard(card)} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={btnStyle}>
                   💳 Paiement
                 </button>
-                <button onClick={() => setEditCard(card)} className="p-2 rounded-xl bg-[#27272a] text-[#a1a1aa]">
-                  <Pencil size={16} />
-                </button>
-                <button
-                  onClick={() => setPendingDelete(card.id)}
-                  className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]"
-                >
-                  <X size={16} />
-                </button>
+                {(card.is_shared || card.owner_id === meId) && (
+                  <>
+                    <button onClick={() => setEditCard(card)} className="p-2 rounded-xl bg-[#27272a] text-[#a1a1aa]">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => setPendingDelete(card.id)} className="p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]">
+                      <X size={16} />
+                    </button>
+                  </>
+                )}
               </div>
 
               {/* Historique paiements */}
@@ -138,12 +139,14 @@ export default function CreditCardsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[#22c55e] font-semibold">{formatCurrency(p.amount)}</span>
-                        <button
-                          onClick={() => setPendingDeletePayment({ cardId: card.id, paymentId: p.id })}
-                          className="p-1 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"
-                        >
-                          <X size={12} />
-                        </button>
+                        {p.user_id === meId && (
+                          <button
+                            onClick={() => setPendingDeletePayment({ cardId: card.id, paymentId: p.id })}
+                            className="p-1 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

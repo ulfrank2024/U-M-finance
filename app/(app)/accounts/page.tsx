@@ -72,14 +72,16 @@ export default function AccountsPage() {
                     {acc.is_shared && <span className="text-[11px] text-[#818cf8]">💑 Compte commun</span>}
                   </div>
                 </div>
-                <div className="flex gap-1.5">
-                  <button onClick={() => setEditAccount(acc)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]">
-                    <Pencil size={14} />
-                  </button>
-                  <button onClick={() => setPendingDelete(acc.id)} className="p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444]">
-                    <X size={14} />
-                  </button>
-                </div>
+                {(acc.is_shared || acc.owner_id === meId) && (
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setEditAccount(acc)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => setPendingDelete(acc.id)} className="p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444]">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
               {/* Solde */}
               <div className="grid grid-cols-3 gap-2 text-center">
