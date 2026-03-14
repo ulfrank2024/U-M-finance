@@ -21,6 +21,7 @@ export default function NewTransactionPage() {
   const [isTransfer, setIsTransfer] = useState(false)
   const [foreignCurrency, setForeignCurrency] = useState('XAF')
   const [exchangeRate, setExchangeRate] = useState('')
+  const [transferRecipient, setTransferRecipient] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -42,9 +43,12 @@ export default function NewTransactionPage() {
     try {
       const rate = isTransfer && exchangeRate ? parseFloat(exchangeRate) : null
       const foreignAmt = rate && amount ? parseFloat(amount) * rate : null
+      const finalDescription = isTransfer && transferRecipient && !description
+        ? `Envoi → ${transferRecipient}`
+        : description || undefined
       await createTransaction({
         amount: parseFloat(amount),
-        description: description || undefined,
+        description: finalDescription,
         category_id: categoryId || undefined,
         type,
         scope,
@@ -202,6 +206,14 @@ export default function NewTransactionPage() {
           {isTransfer && (
             <div className="px-4 pb-4 space-y-3 border-t border-[#3f3f46]">
               <div className="pt-3">
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Destinataire (optionnel)</label>
+                <input
+                  value={transferRecipient}
+                  onChange={e => setTransferRecipient(e.target.value)}
+                  placeholder="ex: Maman, ami Paul, aide église…"
+                />
+              </div>
+              <div>
                 <label className="text-xs text-[#a1a1aa] mb-1 block">Devise de destination</label>
                 <select value={foreignCurrency} onChange={e => setForeignCurrency(e.target.value)}>
                   <option value="XAF">XAF — Franc CFA (Cameroun)</option>
@@ -225,7 +237,7 @@ export default function NewTransactionPage() {
               </div>
               {exchangeRate && amount && (
                 <div className="bg-[#27272a] rounded-xl px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-[#a1a1aa]">La famille reçoit</span>
+                  <span className="text-xs text-[#a1a1aa]">{transferRecipient || 'Destinataire'} reçoit</span>
                   <span className="font-bold text-[#e879f9]">
                     {(parseFloat(amount) * parseFloat(exchangeRate)).toLocaleString('fr-FR')} {foreignCurrency}
                   </span>
