@@ -18,12 +18,23 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { display_name: form.name } },
     })
     if (err) { setError(err.message); setLoading(false); return }
+
+    // Si email confirmation désactivé → session immédiate, on sauvegarde le nom
+    if (data.session) {
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: form.name }),
+      })
+      window.location.href = '/'
+      return
+    }
     setSuccess(true)
   }
 
