@@ -187,15 +187,15 @@ export default function TransactionsPage() {
               </p>
               <div className="space-y-2">
                 {groups[date].map(t => (
-                  <div key={t.id} className="relative group">
-                    <Link href={`/transactions/${t.id}/edit`}>
+                  <div key={t.id} className="flex items-center gap-2">
+                    <Link href={`/transactions/${t.id}/edit`} className="flex-1 min-w-0">
                       <TransactionCard transaction={t} />
                     </Link>
                     <button
                       onClick={() => handleDelete(t.id)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444] opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="flex-shrink-0 p-2 rounded-xl bg-[#ef4444]/10 text-[#ef4444]"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
