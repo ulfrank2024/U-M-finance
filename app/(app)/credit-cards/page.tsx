@@ -96,7 +96,7 @@ export default function CreditCardsPage() {
 
       {/* Modal ajout carte */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => setShowAdd(false)}>
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={() => setShowAdd(false)}>
           <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-[#fafafa] mb-4">Nouvelle carte</h3>
             <form onSubmit={handleAddCard} className="space-y-3">
@@ -120,7 +120,7 @@ export default function CreditCardsPage() {
 
       {/* Modal remboursement */}
       {selectedCard && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => setSelectedCard(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={() => setSelectedCard(null)}>
           <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-[#fafafa] mb-1">Remboursement</h3>
             <p className="text-sm text-[#a1a1aa] mb-4">{selectedCard.name}</p>
