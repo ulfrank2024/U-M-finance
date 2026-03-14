@@ -43,7 +43,10 @@ export default function LoginPage() {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@exemple.com" required />
             </div>
             <div>
-              <label className="text-xs text-[#a1a1aa] mb-1 block">Mot de passe</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-[#a1a1aa]">Mot de passe</label>
+                <Link href="/forgot-password" className="text-xs text-[#e879f9]">Oublié ?</Link>
+              </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
