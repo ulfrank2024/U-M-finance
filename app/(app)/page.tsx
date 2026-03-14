@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Wallet, CreditCard } from 'lucide-react'
+import { Wallet, CreditCard, User } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType } from '@/lib/types'
@@ -32,7 +32,12 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold text-[#fafafa]">U&M Finance 💑</h1>
           <p className="text-xs text-[#a1a1aa] mt-0.5">Tableau de bord</p>
         </div>
-        <MonthPicker value={month} onChange={setMonth} />
+        <div className="flex items-center gap-2">
+          <MonthPicker value={month} onChange={setMonth} />
+          <Link href="/profile" className="w-9 h-9 rounded-xl bg-[#27272a] border border-[#3f3f46] flex items-center justify-center text-[#a1a1aa]">
+            <User size={18} />
+          </Link>
+        </div>
       </div>
 
       {/* Balance */}
