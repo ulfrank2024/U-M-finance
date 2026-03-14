@@ -103,7 +103,7 @@ export default function CreditCardsPage() {
               <input placeholder="Nom (ex: Visa Ulrich)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
               <div className="grid grid-cols-2 gap-2">
                 <input placeholder="4 derniers chiffres" maxLength={4} value={form.last_four} onChange={e => setForm({ ...form, last_four: e.target.value })} />
-                <input type="number" placeholder="Limite (€)" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} />
+                <input type="number" placeholder="Limite ($)" value={form.credit_limit} onChange={e => setForm({ ...form, credit_limit: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <input type="number" placeholder="Jour d'échéance" min={1} max={31} value={form.due_date} onChange={e => setForm({ ...form, due_date: e.target.value })} />
@@ -125,7 +125,7 @@ export default function CreditCardsPage() {
             <h3 className="text-lg font-bold text-[#fafafa] mb-1">Remboursement</h3>
             <p className="text-sm text-[#a1a1aa] mb-4">{selectedCard.name}</p>
             <form onSubmit={handlePayment} className="space-y-3">
-              <input type="number" inputMode="decimal" placeholder="Montant (€)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
+              <input type="number" inputMode="decimal" placeholder="Montant ($)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
               <input placeholder="Note (optionnel)" value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
               <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Enregistrer</button>
             </form>

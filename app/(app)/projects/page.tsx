@@ -121,7 +121,7 @@ export default function ProjectsPage() {
             <form onSubmit={handleAddProject} className="space-y-3">
               <input placeholder="Nom du projet (ex: Vacances été)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
               <input placeholder="Description (optionnel)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
-              <input type="number" inputMode="decimal" placeholder="Objectif (€)" value={form.target_amount} onChange={e => setForm({ ...form, target_amount: e.target.value })} required />
+              <input type="number" inputMode="decimal" placeholder="Objectif ($)" value={form.target_amount} onChange={e => setForm({ ...form, target_amount: e.target.value })} required />
               <div>
                 <label className="text-xs text-[#a1a1aa] mb-1 block">Date limite (optionnel)</label>
                 <input type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />
@@ -139,7 +139,7 @@ export default function ProjectsPage() {
             <h3 className="text-lg font-bold text-[#fafafa] mb-1">Contribuer</h3>
             <p className="text-sm text-[#a1a1aa] mb-4">{selectedProject.name}</p>
             <form onSubmit={handleContribution} className="space-y-3">
-              <input type="number" inputMode="decimal" placeholder="Montant (€)" value={contribution.amount} onChange={e => setContribution({ ...contribution, amount: e.target.value })} required />
+              <input type="number" inputMode="decimal" placeholder="Montant ($)" value={contribution.amount} onChange={e => setContribution({ ...contribution, amount: e.target.value })} required />
               <input placeholder="Note (optionnel)" value={contribution.note} onChange={e => setContribution({ ...contribution, note: e.target.value })} />
               <button type="submit" className="w-full h-12 rounded-xl font-semibold text-white" style={btnStyle}>Ajouter</button>
             </form>

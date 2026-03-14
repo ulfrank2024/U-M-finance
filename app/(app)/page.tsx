@@ -44,13 +44,13 @@ export default function DashboardPage() {
           <div className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
             <p className="text-[11px] text-[#a1a1aa] mb-1">Revenus</p>
             <p className="text-base font-bold text-[#22c55e]">
-              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(balance.couple_total.income)}
+              {new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(balance.couple_total.income)}
             </p>
           </div>
           <div className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
             <p className="text-[11px] text-[#a1a1aa] mb-1">Dépenses</p>
             <p className="text-base font-bold text-[#ef4444]">
-              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(balance.couple_total.total_expenses)}
+              {new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(balance.couple_total.total_expenses)}
             </p>
           </div>
         </div>
