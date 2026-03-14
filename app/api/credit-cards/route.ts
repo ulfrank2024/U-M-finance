@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// GET /api/credit-cards
-export async function GET() {
+// GET /api/credit-cards?mine=true  → seulement mes cartes + partagées
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { data, error } = await supabase
+  const mine = new URL(request.url).searchParams.get('mine') === 'true'
+
+  let q = supabase
     .from('credit_cards')
     .select(`
       *,
@@ -17,6 +19,12 @@ export async function GET() {
       )
     `)
     .order('created_at', { ascending: false })
+
+  if (mine) {
+    q = q.or(`owner_id.eq.${user.id},is_shared.eq.true`)
+  }
+
+  const { data, error } = await q
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

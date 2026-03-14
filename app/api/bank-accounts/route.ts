@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// GET /api/bank-accounts
-export async function GET() {
+// GET /api/bank-accounts?mine=true  → seulement mes comptes + partagés
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { data: accounts, error } = await supabase
+  const mine = new URL(request.url).searchParams.get('mine') === 'true'
+
+  let q = supabase
     .from('bank_accounts')
     .select(`*, owner:profiles!bank_accounts_owner_id_fkey(id, display_name, avatar_color, avatar_url)`)
     .order('created_at', { ascending: true })
+
+  if (mine) {
+    // Seulement mes comptes (owner = moi) OU comptes partagés
+    q = q.or(`owner_id.eq.${user.id},is_shared.eq.true`)
+  }
+
+  const { data: accounts, error } = await q
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

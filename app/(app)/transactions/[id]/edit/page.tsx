@@ -51,8 +51,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
       fetchTransactions({ id }),
       fetchCategories(),
       fetchSharedGroups(),
-      fetchCreditCards(),
-      fetchBankAccounts(),
+      fetchCreditCards(true),
+      fetchBankAccounts(true),
     ]).then(([txs, cats, groups, cards, accounts]) => {
       const found = (txs as Transaction[]).find(t => t.id === id)
       if (found) {

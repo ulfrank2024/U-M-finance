@@ -50,8 +50,8 @@ export default function NewTransactionPage() {
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => {})
     fetchSharedGroups().then(setSharedGroups).catch(() => {})
-    fetchCreditCards().then(setCreditCards).catch(() => {})
-    fetchBankAccounts().then(setBankAccounts).catch(() => {})
+    fetchCreditCards(true).then(setCreditCards).catch(() => {})
+    fetchBankAccounts(true).then(setBankAccounts).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {

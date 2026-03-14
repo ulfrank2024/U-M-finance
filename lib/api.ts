@@ -47,7 +47,7 @@ export const deleteSharedGroup = (id: string) =>
   req<{ success: boolean }>(`/api/shared-groups/${id}`, { method: 'DELETE' })
 
 // Credit Cards
-export const fetchCreditCards = () => req<CreditCard[]>('/api/credit-cards')
+export const fetchCreditCards = (mine = false) => req<CreditCard[]>(`/api/credit-cards${mine ? '?mine=true' : ''}`)
 export const createCreditCard = (body: Partial<CreditCard>) =>
   req<CreditCard>('/api/credit-cards', { method: 'POST', body: JSON.stringify(body) })
 export const updateCreditCard = (id: string, body: Partial<CreditCard>) =>
@@ -71,7 +71,7 @@ export const addContribution = (projectId: string, body: { amount: number; note?
   req<ProjectContribution>(`/api/projects/${projectId}/contributions`, { method: 'POST', body: JSON.stringify(body) })
 
 // Bank Accounts
-export const fetchBankAccounts = () => req<BankAccount[]>('/api/bank-accounts')
+export const fetchBankAccounts = (mine = false) => req<BankAccount[]>(`/api/bank-accounts${mine ? '?mine=true' : ''}`)
 export const createBankAccount = (body: { name: string; color?: string; is_shared?: boolean; owner_id?: string }) =>
   req<BankAccount>('/api/bank-accounts', { method: 'POST', body: JSON.stringify(body) })
 export const updateBankAccount = (id: string, body: Partial<BankAccount>) =>
