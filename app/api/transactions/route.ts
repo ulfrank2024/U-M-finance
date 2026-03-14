@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const body = await request.json()
-  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, created_at } = body
+  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, exchange_rate, foreign_amount, foreign_currency, created_at } = body
 
   if (!amount || !type || !['income', 'expense'].includes(type)) {
     return NextResponse.json({ error: 'Données invalides' }, { status: 400 })
@@ -66,14 +66,17 @@ export async function POST(request: NextRequest) {
     .insert({
       amount: parseFloat(amount),
       description,
-      category_id:     category_id || null,
+      category_id:      category_id || null,
       type,
-      scope:           scope || 'personal',
-      shared_group_id: shared_group_id || null,
-      credit_card_id:  credit_card_id || null,
-      user_id:         user.id,
-      updated_by:      user.id,
-      created_at:      created_at || new Date().toISOString(),
+      scope:            scope || 'personal',
+      shared_group_id:  shared_group_id || null,
+      credit_card_id:   credit_card_id || null,
+      exchange_rate:    exchange_rate || null,
+      foreign_amount:   foreign_amount || null,
+      foreign_currency: foreign_currency || null,
+      user_id:          user.id,
+      updated_by:       user.id,
+      created_at:       created_at || new Date().toISOString(),
     })
     .select(`
       *,

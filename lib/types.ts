@@ -30,6 +30,9 @@ export interface Transaction {
   scope: TransactionScope
   shared_group_id: string | null
   credit_card_id: string | null
+  exchange_rate: number | null
+  foreign_amount: number | null
+  foreign_currency: string | null
   created_at: string
   updated_at: string
   updated_by: string | null

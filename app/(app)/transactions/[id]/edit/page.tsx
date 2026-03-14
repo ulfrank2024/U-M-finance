@@ -17,6 +17,9 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
   const [sharedGroupId, setSharedGroupId] = useState('')
   const [creditCardId, setCreditCardId] = useState('')
   const [date, setDate] = useState('')
+  const [isTransfer, setIsTransfer] = useState(false)
+  const [foreignCurrency, setForeignCurrency] = useState('XAF')
+  const [exchangeRate, setExchangeRate] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -43,6 +46,11 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
         setSharedGroupId(found.shared_group_id || '')
         setCreditCardId(found.credit_card_id || '')
         setDate(found.created_at.split('T')[0])
+        if (found.exchange_rate) {
+          setIsTransfer(true)
+          setExchangeRate(String(found.exchange_rate))
+          setForeignCurrency(found.foreign_currency || 'XAF')
+        }
       }
       setCategories(cats)
       setSharedGroups(groups)
@@ -57,6 +65,8 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
     setSaving(true)
     setError('')
     try {
+      const rate = isTransfer && exchangeRate ? parseFloat(exchangeRate) : null
+      const foreignAmt = rate && amount ? parseFloat(amount) * rate : null
       await updateTransaction(id, {
         amount: parseFloat(amount),
         description: description || undefined,
@@ -65,6 +75,9 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
         scope,
         shared_group_id: scope === 'shared' ? sharedGroupId || undefined : undefined,
         credit_card_id: creditCardId || undefined,
+        exchange_rate: rate,
+        foreign_amount: foreignAmt,
+        foreign_currency: isTransfer ? foreignCurrency : null,
         created_at: new Date(date).toISOString(),
       } as Partial<Transaction>)
       router.push('/transactions')
@@ -119,7 +132,7 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
               style={{ fontSize: '2.5rem', fontWeight: 'bold' }}
               required
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a1aa] text-xl">€</span>
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a1aa] text-xl">$</span>
           </div>
         </div>
 
@@ -177,6 +190,56 @@ export default function EditTransactionPage({ params }: { params: Promise<{ id: 
         <div>
           <label className="text-xs text-[#a1a1aa] mb-1 block">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+
+        {/* Envoi en devises étrangères */}
+        <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsTransfer(!isTransfer)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm"
+          >
+            <span className="flex items-center gap-2 text-[#a1a1aa]">
+              <span>🌍</span> Envoi en devises étrangères
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded-full transition-colors ${isTransfer ? 'bg-[#e879f9]/20 text-[#e879f9]' : 'bg-[#27272a] text-[#71717a]'}`}>
+              {isTransfer ? 'Activé' : 'Optionnel'}
+            </span>
+          </button>
+          {isTransfer && (
+            <div className="px-4 pb-4 space-y-3 border-t border-[#3f3f46]">
+              <div className="pt-3">
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Devise de destination</label>
+                <select value={foreignCurrency} onChange={e => setForeignCurrency(e.target.value)}>
+                  <option value="XAF">XAF — Franc CFA (Cameroun)</option>
+                  <option value="EUR">EUR — Euro</option>
+                  <option value="USD">USD — Dollar US</option>
+                  <option value="GBP">GBP — Livre sterling</option>
+                  <option value="NGN">NGN — Naira (Nigeria)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#a1a1aa] mb-1 block">
+                  Taux de change (1 CAD = ? {foreignCurrency})
+                </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={exchangeRate}
+                  onChange={e => setExchangeRate(e.target.value)}
+                  placeholder={foreignCurrency === 'XAF' ? 'ex: 488' : 'ex: 0.74'}
+                />
+              </div>
+              {exchangeRate && amount && (
+                <div className="bg-[#27272a] rounded-xl px-4 py-3 flex items-center justify-between">
+                  <span className="text-xs text-[#a1a1aa]">La famille reçoit</span>
+                  <span className="font-bold text-[#e879f9]">
+                    {(parseFloat(amount) * parseFloat(exchangeRate)).toLocaleString('fr-FR')} {foreignCurrency}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}

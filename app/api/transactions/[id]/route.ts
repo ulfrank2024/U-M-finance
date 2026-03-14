@@ -11,13 +11,17 @@ export async function PUT(
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { id } = await params
-  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, created_at } = await request.json()
+  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, exchange_rate, foreign_amount, foreign_currency, created_at } = await request.json()
 
   const { data, error } = await supabase
     .from('transactions')
     .update({
       amount, description, category_id, type, scope,
-      shared_group_id, credit_card_id, created_at,
+      shared_group_id, credit_card_id,
+      exchange_rate: exchange_rate ?? null,
+      foreign_amount: foreign_amount ?? null,
+      foreign_currency: foreign_currency ?? null,
+      created_at,
       updated_by: user.id,
     })
     .eq('id', id)
