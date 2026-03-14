@@ -70,6 +70,45 @@ ALTER TABLE credit_cards
 
 
 -- ============================================================
+-- Migration 006 — Table comptes bancaires (cartes débit)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS bank_accounts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  name        TEXT NOT NULL,
+  color       TEXT NOT NULL DEFAULT '#6366f1',
+  is_shared   BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by  UUID REFERENCES profiles(id) ON DELETE SET NULL
+);
+
+-- Activer RLS
+ALTER TABLE bank_accounts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "select_bank_accounts" ON bank_accounts;
+CREATE POLICY "select_bank_accounts" ON bank_accounts
+FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "insert_bank_accounts" ON bank_accounts;
+CREATE POLICY "insert_bank_accounts" ON bank_accounts
+FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "update_bank_accounts" ON bank_accounts;
+CREATE POLICY "update_bank_accounts" ON bank_accounts
+FOR UPDATE TO authenticated USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "delete_bank_accounts" ON bank_accounts;
+CREATE POLICY "delete_bank_accounts" ON bank_accounts
+FOR DELETE TO authenticated USING (auth.uid() IS NOT NULL);
+
+-- Colonne bank_account_id sur transactions
+ALTER TABLE transactions
+  ADD COLUMN IF NOT EXISTS bank_account_id UUID REFERENCES bank_accounts(id);
+
+
+-- ============================================================
 -- Migration 007 — Compte débit source sur les paiements carte
 -- ============================================================
 
