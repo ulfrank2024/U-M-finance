@@ -14,20 +14,23 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Seulement les profils ayant au moins une transaction, + le profil courant
-  const { data: activeUserRows } = await admin
-    .from('transactions')
-    .select('user_id')
+  // Profil courant + partenaire (seulement ceux ayant interagi avec les transactions de l'utilisateur)
+  const [{ data: editedByOthers }, { data: iEdited }] = await Promise.all([
+    admin.from('transactions').select('updated_by').eq('user_id', user.id).neq('updated_by', user.id).not('updated_by', 'is', null),
+    admin.from('transactions').select('user_id').eq('updated_by', user.id).neq('user_id', user.id),
+  ])
 
-  const activeIds = [...new Set([
-    user.id,
-    ...(activeUserRows || []).map((r: { user_id: string }) => r.user_id),
+  const partnerIds = [...new Set([
+    ...(editedByOthers || []).map((r: { updated_by: string }) => r.updated_by),
+    ...(iEdited || []).map((r: { user_id: string }) => r.user_id),
   ])]
+
+  const coupleIds = [user.id, ...partnerIds]
 
   const { data: profiles } = await admin
     .from('profiles')
     .select('id, display_name, email, avatar_color, avatar_url')
-    .in('id', activeIds)
+    .in('id', coupleIds)
 
   // Filtre de date
   let dateFilter: { start?: string; end?: string } = {}

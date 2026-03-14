@@ -32,20 +32,43 @@ export default function TransactionsPage() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
-  // Charger l'utilisateur courant + tous les profils actifs
+  // Charger l'utilisateur courant + partenaire (uniquement ceux ayant interagi avec nos transactions)
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      supabase
+
+      // Mon profil
+      const { data: myProfile } = await supabase
         .from('profiles')
         .select('*')
-        .then(({ data }) => {
-          const all = data || []
-          const myProfile = all.find(p => p.id === user.id) || null
-          setMe(myProfile)
-          setProfiles(all)
-        })
+        .eq('id', user.id)
+        .single()
+
+      setMe(myProfile)
+
+      // Partenaire = quelqu'un qui a modifié une de mes transactions OU dont j'ai modifié une transaction
+      const [{ data: editedByOthers }, { data: iEdited }] = await Promise.all([
+        supabase.from('transactions').select('updated_by').eq('user_id', user.id).neq('updated_by', user.id).not('updated_by', 'is', null),
+        supabase.from('transactions').select('user_id').eq('updated_by', user.id).neq('user_id', user.id),
+      ])
+
+      const partnerIds = [...new Set([
+        ...(editedByOthers || []).map((t: { updated_by: string }) => t.updated_by),
+        ...(iEdited || []).map((t: { user_id: string }) => t.user_id),
+      ])]
+
+      if (partnerIds.length === 0) {
+        setProfiles(myProfile ? [myProfile] : [])
+        return
+      }
+
+      const { data: partners } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', partnerIds)
+
+      setProfiles([...(myProfile ? [myProfile] : []), ...(partners || [])])
     })
   }, [])
 
