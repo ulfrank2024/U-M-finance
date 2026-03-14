@@ -14,18 +14,15 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Profil courant + partenaire (seulement ceux ayant interagi avec les transactions de l'utilisateur)
-  const [{ data: editedByOthers }, { data: iEdited }] = await Promise.all([
-    admin.from('transactions').select('updated_by').eq('user_id', user.id).neq('updated_by', user.id).not('updated_by', 'is', null),
-    admin.from('transactions').select('user_id').eq('updated_by', user.id).neq('user_id', user.id),
-  ])
+  // Profils du couple = l'utilisateur courant + tous ceux qui ont au moins 1 transaction
+  const { data: txUsers } = await admin
+    .from('transactions')
+    .select('user_id')
 
-  const partnerIds = [...new Set([
-    ...(editedByOthers || []).map((r: { updated_by: string }) => r.updated_by),
-    ...(iEdited || []).map((r: { user_id: string }) => r.user_id),
+  const coupleIds = [...new Set([
+    user.id,
+    ...(txUsers || []).map((r: { user_id: string }) => r.user_id),
   ])]
-
-  const coupleIds = [user.id, ...partnerIds]
 
   const { data: profiles } = await admin
     .from('profiles')
