@@ -60,89 +60,90 @@ function SortableCategoryRow({
 
   return (
     <div ref={setNodeRef} style={style} className="bg-[#18181b] rounded-2xl border border-[#3f3f46]">
-      <div className="flex items-center gap-3 p-3">
-        {/* Drag handle */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="flex-shrink-0 p-1 text-[#3f3f46] hover:text-[#71717a] cursor-grab active:cursor-grabbing touch-none"
-        >
-          <GripVertical size={16} />
-        </button>
-
-        {editing === cat.id ? (
-          <>
+      {editing === cat.id ? (
+        /* Mode édition */
+        <div className="p-3 space-y-2">
+          <div className="flex items-center gap-2">
             <input value={editForm.icon} onChange={e => setEditForm({ ...editForm, icon: e.target.value })}
-              className="w-14 text-center text-xl" style={{ padding: '0.5rem' }} />
+              className="w-12 text-center text-xl" style={{ padding: '0.4rem' }} />
             <input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-              className="flex-1" style={{ padding: '0.5rem 0.75rem' }} />
-            <div className="flex gap-1">
-              {PRESET_COLORS.map(c => (
-                <button key={c} type="button" onClick={() => setEditForm({ ...editForm, color: c })}
-                  className={`w-5 h-5 rounded-full flex-shrink-0 ${editForm.color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-[#18181b]' : ''}`}
-                  style={{ backgroundColor: c }} />
-              ))}
-            </div>
+              className="flex-1" style={{ padding: '0.4rem 0.6rem' }} />
             <button onClick={() => onConfirmEdit(cat.id)} className="p-1.5 rounded-lg bg-[#22c55e]/20 text-[#22c55e]"><Check size={14} /></button>
             <button onClick={onCancelEdit} className="p-1.5 rounded-lg bg-[#3f3f46] text-[#a1a1aa]"><X size={14} /></button>
-          </>
-        ) : (
-          <>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESET_COLORS.map(c => (
+              <button key={c} type="button" onClick={() => setEditForm({ ...editForm, color: c })}
+                className={`w-6 h-6 rounded-full flex-shrink-0 ${editForm.color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-[#18181b]' : ''}`}
+                style={{ backgroundColor: c }} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="p-3">
+          {/* Ligne 1 : drag + icone + nom + badge fixe */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="flex-shrink-0 p-1 text-[#3f3f46] hover:text-[#71717a] cursor-grab active:cursor-grabbing touch-none"
+            >
+              <GripVertical size={15} />
+            </button>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-shrink-0"
               style={{ backgroundColor: `${cat.color}25` }}>
               {cat.icon}
             </div>
-            <span className="flex-1 text-sm font-medium text-[#fafafa]">{cat.name}</span>
+            <span className="flex-1 text-sm font-medium text-[#fafafa] truncate">{cat.name}</span>
+            <button onClick={() => onToggleFixed(cat)}
+              className={`flex-shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+                cat.is_fixed ? 'bg-[#f97316]/20 text-[#f97316]' : 'bg-[#27272a] text-[#71717a]'
+              }`}>
+              {cat.is_fixed ? '📌 Fixe' : 'Variable'}
+            </button>
+          </div>
 
-            {/* Budget badge / editor */}
+          {/* Ligne 2 : budget + actions */}
+          <div className="flex items-center gap-1.5 mt-2 pl-7">
             {editingBudget === cat.id ? (
-              <div className="flex items-center gap-1">
+              <>
                 <input
                   type="number"
                   value={budgetInput}
                   onChange={e => setBudgetInput(e.target.value)}
                   placeholder="Budget $"
-                  className="w-24 text-xs"
-                  style={{ padding: '0.25rem 0.5rem' }}
+                  className="flex-1 text-xs"
+                  style={{ padding: '0.2rem 0.5rem' }}
                   autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') onSaveBudget(cat.id); if (e.key === 'Escape') onCancelBudget() }}
                 />
                 <button onClick={() => onSaveBudget(cat.id)} className="p-1 rounded-lg bg-[#22c55e]/20 text-[#22c55e]"><Check size={12} /></button>
                 <button onClick={onCancelBudget} className="p-1 rounded-lg bg-[#3f3f46] text-[#a1a1aa]"><X size={12} /></button>
-              </div>
+              </>
             ) : (
-              <button
-                onClick={() => onStartBudget(cat.id, budget?.monthly_amount)}
-                className={`flex-shrink-0 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                  budget ? 'bg-[#818cf8]/20 text-[#818cf8]' : 'bg-[#27272a] text-[#71717a]'
-                }`}
-              >
-                {budget ? `💰 ${formatCurrency(budget.monthly_amount)}` : '+ Budget'}
-              </button>
+              <>
+                <button
+                  onClick={() => onStartBudget(cat.id, budget?.monthly_amount)}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors ${
+                    budget ? 'bg-[#818cf8]/20 text-[#818cf8]' : 'bg-[#27272a] text-[#71717a]'
+                  }`}
+                >
+                  {budget ? `💰 ${formatCurrency(budget.monthly_amount)}` : '+ Budget'}
+                </button>
+                {budget && (
+                  <button onClick={() => onDeleteBudget(cat.id)} className="p-0.5 rounded text-[#71717a] hover:text-[#ef4444]">
+                    <X size={11} />
+                  </button>
+                )}
+              </>
             )}
-
-            {budget && editingBudget !== cat.id && (
-              <button
-                onClick={() => onDeleteBudget(cat.id)}
-                className="p-1 rounded-lg bg-[#27272a] text-[#71717a] hover:text-[#ef4444] transition-colors"
-                title="Supprimer le budget"
-              >
-                <X size={12} />
-              </button>
-            )}
-
-            <button onClick={() => onToggleFixed(cat)}
-              className={`px-2 py-1 rounded-lg text-[11px] font-medium transition-colors flex-shrink-0 ${
-                cat.is_fixed ? 'bg-[#f97316]/20 text-[#f97316]' : 'bg-[#27272a] text-[#71717a]'
-              }`}>
-              {cat.is_fixed ? '📌 Fixe' : 'Variable'}
-            </button>
-            <button onClick={() => onStartEdit(cat)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]"><Pencil size={14} /></button>
-            <button onClick={() => onDelete(cat.id)} className="p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"><Trash2 size={14} /></button>
-          </>
-        )}
-      </div>
+            <div className="flex-1" />
+            <button onClick={() => onStartEdit(cat)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]"><Pencil size={13} /></button>
+            <button onClick={() => onDelete(cat.id)} className="p-1.5 rounded-lg bg-[#ef4444]/10 text-[#ef4444]"><Trash2 size={13} /></button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
