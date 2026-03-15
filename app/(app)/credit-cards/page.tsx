@@ -37,7 +37,7 @@ export default function CreditCardsPage() {
     createClient().auth.getUser().then(({ data: { user } }) => {
       if (user) setMeId(user.id)
     })
-    fetchBankAccounts().then(setBankAccounts).catch(() => {})
+    fetchBankAccounts(true).then(setBankAccounts).catch(() => {})
   }, [])
 
   async function handleAddCard(e: React.FormEvent) {
@@ -84,9 +84,11 @@ export default function CreditCardsPage() {
   const allCards = cards || []
 
   // Regrouper : mes cartes / ses cartes / communes
-  const myCards      = allCards.filter(c => !c.is_shared && c.owner_id === meId)
-  const partnerCards = allCards.filter(c => !c.is_shared && c.owner_id !== meId && c.owner_id !== null)
+  // owner_id null = créé sans assignation → appartient à l'utilisateur courant
+  const myCards      = allCards.filter(c => !c.is_shared && (c.owner_id === meId || c.owner_id === null))
+  const partnerCards = allCards.filter(c => !c.is_shared && c.owner_id !== null && c.owner_id !== meId)
   const sharedCards  = allCards.filter(c => c.is_shared)
+  const partnerName  = partnerCards[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
 
   // Total dette globale
   const totalDebt = allCards.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
@@ -105,7 +107,7 @@ export default function CreditCardsPage() {
                 <button onClick={() => setSelectedCard(card)} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={btnStyle}>
                   💳 Paiement
                 </button>
-                {(card.is_shared || card.owner_id === meId) && (
+                {(card.is_shared || card.owner_id === meId || card.owner_id === null) && (
                   <>
                     <button onClick={() => setEditCard(card)} className="p-2 rounded-xl bg-[#27272a] text-[#a1a1aa]">
                       <Pencil size={16} />
@@ -210,7 +212,7 @@ export default function CreditCardsPage() {
           </div>
 
           <CardSection title="Mes cartes" items={myCards} />
-          <CardSection title="Ses cartes" items={partnerCards} />
+          <CardSection title={`Cartes de ${partnerName}`} items={partnerCards} />
           <CardSection title="Cartes communes" items={sharedCards} />
         </div>
       )}

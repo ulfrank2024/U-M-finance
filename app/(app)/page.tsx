@@ -77,6 +77,7 @@ export default function DashboardPage() {
       {(bankAccounts || []).length > 0 && (() => {
         const myAccounts      = (bankAccounts || []).filter(a => !a.is_shared && (a.owner_id === profile?.id || a.owner_id === null))
         const partnerAccounts = (bankAccounts || []).filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== profile?.id)
+        const partnerFirstName = partnerAccounts[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
         const sharedAccounts  = (bankAccounts || []).filter(a => a.is_shared)
 
         const AccountGrid = ({ items }: { items: BankAccount[] }) => (
@@ -114,7 +115,7 @@ export default function DashboardPage() {
               {partnerAccounts.length > 0 && (
                 <div>
                   <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">
-                    {partnerAccounts[0].owner?.display_name?.split(' ')[0] || 'Sa/Son'} comptes
+                    Comptes de {partnerFirstName}
                   </p>
                   <AccountGrid items={partnerAccounts} />
                 </div>

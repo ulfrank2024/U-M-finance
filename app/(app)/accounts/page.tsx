@@ -31,9 +31,11 @@ export default function AccountsPage() {
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
   const allAccounts = accounts || []
-  const myAccounts      = allAccounts.filter(a => !a.is_shared && a.owner_id === meId)
-  const partnerAccounts = allAccounts.filter(a => !a.is_shared && a.owner_id !== meId && a.owner_id !== null)
+  // owner_id null = créé sans assignation → appartient à l'utilisateur courant
+  const myAccounts      = allAccounts.filter(a => !a.is_shared && (a.owner_id === meId || a.owner_id === null))
+  const partnerAccounts = allAccounts.filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== meId)
   const sharedAccounts  = allAccounts.filter(a => a.is_shared)
+  const partnerName     = partnerAccounts[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -72,7 +74,7 @@ export default function AccountsPage() {
                     {acc.is_shared && <span className="text-[11px] text-[#818cf8]">💑 Compte commun</span>}
                   </div>
                 </div>
-                {(acc.is_shared || acc.owner_id === meId) && (
+                {(acc.is_shared || acc.owner_id === meId || acc.owner_id === null) && (
                   <div className="flex gap-1.5">
                     <button onClick={() => setEditAccount(acc)} className="p-1.5 rounded-lg bg-[#27272a] text-[#a1a1aa]">
                       <Pencil size={14} />
@@ -136,7 +138,7 @@ export default function AccountsPage() {
           ) : (
             <div className="space-y-5">
               <AccountSection title="Mes comptes" items={myAccounts} />
-              <AccountSection title="Ses comptes" items={partnerAccounts} />
+              <AccountSection title={`Comptes de ${partnerName}`} items={partnerAccounts} />
               <AccountSection title="Comptes communs" items={sharedAccounts} />
             </div>
           )}
