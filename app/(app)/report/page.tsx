@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
-import type { ReportData, ReportCardDetail } from '@/lib/types'
+import type { ReportData, ReportCardDetail, ReportIncomeTx } from '@/lib/types'
 import MonthPicker from '@/components/ui/MonthPicker'
 import Avatar from '@/components/ui/Avatar'
 
@@ -77,6 +77,47 @@ export default function ReportPage() {
               </div>
             </div>
           </div>
+
+          {/* Entrées du mois */}
+          {(data.income_transactions || []).length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold text-[#fafafa]">💰 Entrées du mois</h2>
+                <span className="text-sm font-bold text-[#22c55e]">{formatCurrency(data.income)}</span>
+              </div>
+              <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                {data.income_transactions.map((tx: ReportIncomeTx, i: number) => (
+                  <div key={tx.id} className={`flex items-center gap-3 px-4 py-3 ${i < data.income_transactions.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                    {/* Icône catégorie */}
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0"
+                      style={{ backgroundColor: tx.category ? `${tx.category.color}25` : '#27272a' }}>
+                      {tx.category?.icon || '💰'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[#fafafa] truncate">{tx.description || tx.category?.name || 'Revenu'}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {tx.profile && (
+                          <div className="flex items-center gap-1">
+                            <Avatar
+                              displayName={tx.profile.display_name}
+                              color={tx.profile.avatar_color}
+                              avatarUrl={tx.profile.avatar_url}
+                              size="xs"
+                            />
+                            <span className="text-[10px] text-[#71717a]">{tx.profile.display_name}</span>
+                          </div>
+                        )}
+                        <span className="text-[10px] text-[#71717a]">
+                          {new Date(tx.created_at).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' })}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-[#22c55e] flex-shrink-0">{formatCurrency(tx.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Charges fixes */}
           <section>

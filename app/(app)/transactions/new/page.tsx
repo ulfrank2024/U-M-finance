@@ -2,11 +2,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
-import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts } from '@/lib/api'
+import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts, addCardPayment } from '@/lib/api'
 import type { Category, SharedGroup, CreditCard, BankAccount } from '@/lib/types'
 import PickerModal from '@/components/ui/PickerModal'
 
-type TxType = 'expense' | 'income'
+type TxType = 'expense' | 'income' | 'card_payment'
 type TxScope = 'personal' | 'common' | 'shared'
 
 const CURRENCIES = [
@@ -38,7 +38,8 @@ export default function NewTransactionPage() {
 
   const [categories, setCategories] = useState<Category[]>([])
   const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([])
-  const [creditCards, setCreditCards] = useState<CreditCard[]>([])
+  const [creditCards, setCreditCards] = useState<CreditCard[]>([])        // mes cartes (dépenses)
+  const [allCreditCards, setAllCreditCards] = useState<CreditCard[]>([]) // toutes (remboursement)
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
 
   // Pickers ouverts
@@ -50,7 +51,8 @@ export default function NewTransactionPage() {
   useEffect(() => {
     fetchCategories().then(setCategories).catch(() => {})
     fetchSharedGroups().then(setSharedGroups).catch(() => {})
-    fetchCreditCards(true).then(setCreditCards).catch(() => {})
+    fetchCreditCards(true).then(setCreditCards).catch(() => {})   // mes cartes pour dépenses
+    fetchCreditCards(false).then(setAllCreditCards).catch(() => {})
     fetchBankAccounts(true).then(setBankAccounts).catch(() => {})
   }, [])
 
@@ -60,6 +62,17 @@ export default function NewTransactionPage() {
     setLoading(true)
     setError('')
     try {
+      if (type === 'card_payment') {
+        if (!creditCardId) { setError('Sélectionne une carte'); setLoading(false); return }
+        await addCardPayment(creditCardId, {
+          amount: parseFloat(amount),
+          note: description || undefined,
+          payment_date: date,
+          bank_account_id: bankAccountId || undefined,
+        })
+        router.push('/credit-cards')
+        return
+      }
       const rate = isTransfer && exchangeRate ? parseFloat(exchangeRate) : null
       const foreignAmt = rate && amount ? parseFloat(amount) * rate : null
       const finalDescription = isTransfer && transferRecipient && !description
@@ -69,7 +82,7 @@ export default function NewTransactionPage() {
         amount: parseFloat(amount),
         description: finalDescription,
         category_id: categoryId || undefined,
-        type,
+        type: type as 'expense' | 'income',
         scope,
         shared_group_id: scope === 'shared' ? sharedGroupId || undefined : undefined,
         credit_card_id: (type === 'expense' && paymentMethod === 'credit') ? creditCardId || undefined : undefined,
@@ -105,18 +118,83 @@ export default function NewTransactionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Type */}
-        <div className="grid grid-cols-2 gap-2">
-          {(['expense', 'income'] as TxType[]).map(t => (
-            <button key={t} type="button" onClick={() => setType(t)}
-              className={`h-12 rounded-xl font-semibold text-sm transition-all ${
-                type === t ? 'text-white shadow-lg' : 'bg-[#27272a] text-[#a1a1aa]'
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { key: 'expense',      label: '💸 Dépense',    activeColor: '#ef4444' },
+            { key: 'income',       label: '💰 Revenu',     activeColor: '#22c55e' },
+            { key: 'card_payment', label: '💳 Remb. carte', activeColor: '#8b5cf6' },
+          ] as { key: TxType; label: string; activeColor: string }[]).map(t => (
+            <button key={t.key} type="button"
+              onClick={() => { setType(t.key); setCreditCardId(''); setBankAccountId('') }}
+              className={`h-12 rounded-xl font-semibold text-xs transition-all ${
+                type === t.key ? 'text-white shadow-lg' : 'bg-[#27272a] text-[#a1a1aa]'
               }`}
-              style={type === t ? (t === 'expense' ? { background: '#ef4444' } : { background: '#22c55e' }) : {}}
+              style={type === t.key ? { background: t.activeColor } : {}}
             >
-              {t === 'expense' ? '💸 Dépense' : '💰 Revenu'}
+              {t.label}
             </button>
           ))}
         </div>
+
+        {/* Formulaire simplifié pour remboursement carte */}
+        {type === 'card_payment' && (
+          <>
+            <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-2xl p-3">
+              <p className="text-xs text-[#a1a1aa]">
+                💳 Rembourse une carte de crédit. Le solde de la carte sera réduit et le compte bancaire débité.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="relative">
+                <input type="number" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="text-center text-4xl font-bold bg-transparent border-0 border-b-2 border-[#3f3f46] rounded-none focus:border-[#8b5cf6] focus:shadow-none"
+                  style={{ fontSize: '2.5rem' }} autoFocus required />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#a1a1aa] text-xl">$</span>
+              </div>
+            </div>
+            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Note (optionnel)" />
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Carte à rembourser *</label>
+              <button type="button" onClick={() => setShowCardPicker(true)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm">
+                <span className={allCreditCards.find(c => c.id === creditCardId) ? 'text-[#fafafa]' : 'text-[#71717a]'}>
+                  {allCreditCards.find(c => c.id === creditCardId)
+                    ? `💳 ${allCreditCards.find(c => c.id === creditCardId)!.name}${allCreditCards.find(c => c.id === creditCardId)!.last_four ? ` ••${allCreditCards.find(c => c.id === creditCardId)!.last_four}` : ''}`
+                    : 'Sélectionner la carte'}
+                </span>
+                <ChevronRight size={16} className="text-[#71717a]" />
+              </button>
+            </div>
+            {bankAccounts.length > 0 && (
+              <div>
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Payé depuis (optionnel)</label>
+                <button type="button" onClick={() => setShowAccountPicker(true)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm">
+                  <span className={bankAccounts.find(a => a.id === bankAccountId) ? 'text-[#fafafa]' : 'text-[#71717a]'}>
+                    {bankAccounts.find(a => a.id === bankAccountId)
+                      ? `🏦 ${bankAccounts.find(a => a.id === bankAccountId)!.name}`
+                      : 'Choisir un compte'}
+                  </span>
+                  <ChevronRight size={16} className="text-[#71717a]" />
+                </button>
+              </div>
+            )}
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+            {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
+            <button type="submit" disabled={loading}
+              className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60"
+              style={{ background: '#8b5cf6' }}>
+              {loading ? 'Enregistrement...' : 'Rembourser la carte'}
+            </button>
+          </>
+        )}
+
+        {/* Formulaire dépense / revenu */}
+        {type !== 'card_payment' && (<>
 
         {/* Montant */}
         <div className="text-center">
@@ -311,6 +389,7 @@ export default function NewTransactionPage() {
         >
           {loading ? 'Ajout...' : 'Ajouter'}
         </button>
+        </>)}
       </form>
 
       {/* Pickers */}
@@ -327,10 +406,16 @@ export default function NewTransactionPage() {
         nullable nullLabel="Aucun compte"
       />
       <PickerModal
-        isOpen={showCardPicker} title="Carte de crédit"
-        options={creditCards.map(c => ({ value: c.id, label: c.name, icon: '💳', subtitle: c.last_four ? `••${c.last_four}` : undefined }))}
+        isOpen={showCardPicker}
+        title={type === 'card_payment' ? 'Carte à rembourser' : 'Carte de crédit'}
+        options={(type === 'card_payment' ? allCreditCards : creditCards).map(c => ({
+          value: c.id,
+          label: `${c.name}${c.last_four ? ` ••${c.last_four}` : ''}`,
+          icon: '💳',
+          subtitle: c.current_balance > 0 ? `Solde dû : ${c.current_balance.toFixed(2)} $` : 'Solde : 0 $',
+        }))}
         value={creditCardId} onSelect={setCreditCardId} onClose={() => setShowCardPicker(false)}
-        nullable nullLabel="Aucune carte"
+        nullable={type !== 'card_payment'} nullLabel="Aucune carte"
       />
       <PickerModal
         isOpen={showCurrencyPicker} title="Devise de destination"

@@ -177,6 +177,15 @@ export interface ReportCardDetail {
   paid_this_month: number
 }
 
+export interface ReportIncomeTx {
+  id: string
+  amount: number
+  description: string | null
+  created_at: string
+  category: { name: string; icon: string; color: string } | null
+  profile: { display_name: string; avatar_color: string; avatar_url: string | null } | null
+}
+
 export interface ReportData {
   month: string
   income: number
@@ -189,4 +198,5 @@ export interface ReportData {
   fixed_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
   variable_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
   trend: { month: string; income: number; expenses: number }[]
+  income_transactions: ReportIncomeTx[]
 }

@@ -22,12 +22,13 @@ export async function GET(request: NextRequest) {
 
   const { start, end } = monthBounds(month)
 
-  // 1. Transactions du mois avec catégories
+  // 1. Transactions du mois avec catégories + profil
   const { data: txs } = await admin
     .from('transactions')
-    .select('amount, type, category_id, categories(id, name, icon, color, is_fixed)')
+    .select('id, amount, type, description, created_at, category_id, user_id, categories(id, name, icon, color, is_fixed), profiles!transactions_user_id_fkey(id, display_name, avatar_color, avatar_url)')
     .gte('created_at', start)
     .lte('created_at', end)
+    .order('created_at', { ascending: false })
 
   // 2. Catégories is_fixed
   const { data: allCats } = await admin.from('categories').select('id, name, icon, color, is_fixed')
@@ -38,11 +39,26 @@ export async function GET(request: NextRequest) {
 
   // 3. Calcul income / dépenses
   let income = 0
+  const income_transactions: {
+    id: string; amount: number; description: string | null; created_at: string
+    category: { name: string; icon: string; color: string } | null
+    profile: { display_name: string; avatar_color: string; avatar_url: string | null } | null
+  }[] = []
   const expByCategory: Record<string, { name: string; icon: string; color: string; is_fixed: boolean; amount: number; category_id: string | null }> = {}
 
   for (const tx of (txs || [])) {
     if (tx.type === 'income') {
       income += Number(tx.amount)
+      const cat = tx.category_id ? catMap.get(tx.category_id) : undefined
+      const prof = tx.profiles as { display_name: string; avatar_color: string; avatar_url: string | null } | null
+      income_transactions.push({
+        id: tx.id,
+        amount: Number(tx.amount),
+        description: tx.description ?? null,
+        created_at: tx.created_at,
+        category: cat ? { name: cat.name, icon: cat.icon, color: cat.color } : null,
+        profile: prof ?? null,
+      })
     } else {
       const catId = tx.category_id || '__none__'
       const cat = tx.category_id ? catMap.get(tx.category_id) : undefined
@@ -146,6 +162,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     month, income, fixed_expenses, variable_expenses, savings, savings_rate,
-    card_debt, cards_detail, fixed_breakdown, variable_breakdown, trend,
+    card_debt, cards_detail, fixed_breakdown, variable_breakdown, trend, income_transactions,
   })
 }
