@@ -1,11 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, X, CreditCard as CardIcon, Pencil } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { createCreditCard, addCardPayment, deleteCreditCard, updateCreditCard, deleteCardPayment, fetchBankAccounts } from '@/lib/api'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import type { CreditCard, BankAccount } from '@/lib/types'
+import type { CreditCard, BankAccount, Profile } from '@/lib/types'
 import CreditCardWidget from '@/components/CreditCardWidget'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
@@ -15,7 +14,10 @@ import { ChevronRight } from 'lucide-react'
 
 export default function CreditCardsPage() {
   const { data: cards, loading, refetch } = useFetch<CreditCard[]>('/api/credit-cards')
-  const [meId, setMeId] = useState<string | null>(null)
+  const { data: me } = useFetch<Profile>('/api/profile')
+  const { data: bankAccountsData } = useFetch<BankAccount[]>('/api/bank-accounts?mine=true')
+  const meId = me?.id ?? null
+  const bankAccounts = bankAccountsData || []
   const [showAdd, setShowAdd] = useState(false)
   const [editCard, setEditCard] = useState<CreditCard | null>(null)
   const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null)
@@ -24,7 +26,6 @@ export default function CreditCardsPage() {
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
   const [paymentAccountId, setPaymentAccountId] = useState('')
   const [showPayAccountPicker, setShowPayAccountPicker] = useState(false)
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [payLoading, setPayLoading] = useState(false)
   const [payError, setPayError] = useState('')
   const [addLoading, setAddLoading] = useState(false)
@@ -32,13 +33,6 @@ export default function CreditCardsPage() {
   const [form, setForm] = useState({ name: '', last_four: '', credit_limit: '', opening_balance: '', due_date: '', is_shared: false })
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [pendingDeletePayment, setPendingDeletePayment] = useState<{ cardId: string; paymentId: string } | null>(null)
-
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data: { user } }) => {
-      if (user) setMeId(user.id)
-    })
-    fetchBankAccounts(true).then(setBankAccounts).catch(() => {})
-  }, [])
 
   async function handleAddCard(e: React.FormEvent) {
     e.preventDefault()
@@ -88,7 +82,7 @@ export default function CreditCardsPage() {
   const myCards      = allCards.filter(c => !c.is_shared && (c.owner_id === meId || c.owner_id === null))
   const partnerCards = allCards.filter(c => !c.is_shared && c.owner_id !== null && c.owner_id !== meId)
   const sharedCards  = allCards.filter(c => c.is_shared)
-  const partnerName  = partnerCards[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
+  const partnerName  = partnerCards[0]?.owner?.display_name || 'Partenaire'
 
   // Total dette globale
   const totalDebt = allCards.reduce((s, c) => s + Math.max(0, c.current_balance), 0)

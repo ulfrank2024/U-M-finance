@@ -1,12 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, Pencil, X, CreditCard, Wallet } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { createBankAccount, updateBankAccount, deleteBankAccount } from '@/lib/api'
 import { formatCurrency } from '@/lib/utils'
-import type { BankAccount } from '@/lib/types'
+import type { BankAccount, Profile } from '@/lib/types'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -15,7 +14,8 @@ const PRESET_COLORS = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ef4444','#e879f
 
 export default function AccountsPage() {
   const { data: accounts, loading, refetch } = useFetch<BankAccount[]>('/api/bank-accounts')
-  const [meId, setMeId] = useState<string | null>(null)
+  const { data: me } = useFetch<Profile>('/api/profile')
+  const meId = me?.id ?? null
   const [showAdd, setShowAdd] = useState(false)
   const [editAccount, setEditAccount] = useState<BankAccount | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
@@ -23,19 +23,13 @@ export default function AccountsPage() {
   const [addError, setAddError] = useState('')
   const [form, setForm] = useState({ name: '', color: '#6366f1', is_shared: false })
 
-  useEffect(() => {
-    createClient().auth.getUser().then(({ data: { user } }) => {
-      if (user) setMeId(user.id)
-    })
-  }, [])
-
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
   const allAccounts = accounts || []
   // owner_id null = créé sans assignation → appartient à l'utilisateur courant
   const myAccounts      = allAccounts.filter(a => !a.is_shared && (a.owner_id === meId || a.owner_id === null))
   const partnerAccounts = allAccounts.filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== meId)
   const sharedAccounts  = allAccounts.filter(a => a.is_shared)
-  const partnerName     = partnerAccounts[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
+  const partnerName     = partnerAccounts[0]?.owner?.display_name || 'Partenaire'
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
