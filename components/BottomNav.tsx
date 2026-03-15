@@ -1,12 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ArrowLeftRight, BarChart2, Plus, Target } from 'lucide-react'
+import { Home, ArrowLeftRight, Wallet, BarChart2, Plus, Target } from 'lucide-react'
 
 const tabs = [
   { href: '/',             icon: Home,          label: 'Accueil' },
-  { href: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  { href: '/transactions', icon: ArrowLeftRight, label: 'Txns' },
   { href: '/transactions/new', icon: Plus,       label: '', fab: true },
+  { href: '/accounts',     icon: Wallet,         label: 'Comptes' },
   { href: '/projects',     icon: Target,         label: 'Projets' },
   { href: '/report',       icon: BarChart2,      label: 'Rapport' },
 ]
@@ -16,7 +17,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#18181b] border-t border-[#3f3f46]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = tab.href === '/'
@@ -28,10 +29,10 @@ export default function BottomNav() {
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="flex items-center justify-center w-14 h-14 rounded-full -mt-6 shadow-lg shadow-fuchsia-500/30"
+                className="flex items-center justify-center w-12 h-12 rounded-full -mt-5 shadow-lg shadow-fuchsia-500/30 flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
               >
-                <Plus size={26} color="white" strokeWidth={2.5} />
+                <Plus size={22} color="white" strokeWidth={2.5} />
               </Link>
             )
           }
@@ -40,12 +41,12 @@ export default function BottomNav() {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-colors ${
+              className={`flex flex-col items-center gap-0.5 px-1.5 py-1 rounded-xl transition-colors flex-1 ${
                 isActive ? 'text-[#e879f9]' : 'text-[#a1a1aa]'
               }`}
             >
-              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <Icon size={19} strokeWidth={isActive ? 2.5 : 1.8} />
+              <span className="text-[9px] font-medium">{tab.label}</span>
             </Link>
           )
         })}
