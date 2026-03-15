@@ -72,17 +72,6 @@ export default function TransactionsPage() {
     })
   }, [])
 
-  // Realtime sync
-  useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel('realtime-transactions')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => refetch())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_card_payments' }, () => refetchCards())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [refetch, refetchCards])
-
   const params: Record<string, string> = { month }
   if (filter === 'income' || filter === 'expense') params.type = filter
   if (filter === 'personal' || filter === 'common' || filter === 'shared') params.scope = filter
@@ -98,6 +87,17 @@ export default function TransactionsPage() {
       ? null
       : `/api/credit-card-payments?month=${month}`
   )
+
+  // Realtime sync
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('realtime-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => refetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_card_payments' }, () => refetchCards())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [refetch, refetchCards])
 
   function handleDelete(id: string) {
     setPendingDelete(id)
