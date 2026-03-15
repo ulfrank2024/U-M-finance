@@ -141,6 +141,37 @@ export async function GET(request: NextRequest) {
 
   const card_debt = cards_detail.reduce((s: number, c: { current_balance: number }) => s + c.current_balance, 0)
 
+  // 4b. Mois précédent
+  const [currY, currM] = month.split('-').map(Number)
+  let prevM = currM - 1
+  let prevY = currY
+  if (prevM <= 0) { prevM += 12; prevY -= 1 }
+  const prevMonthStr = `${prevY}-${String(prevM).padStart(2, '0')}`
+  const { start: prevStart, end: prevEnd } = monthBounds(prevMonthStr)
+  const { data: prevTxs } = await admin
+    .from('transactions')
+    .select('amount, type, category_id')
+    .gte('created_at', prevStart)
+    .lte('created_at', prevEnd)
+
+  let prev_income = 0
+  let prev_fixed = 0
+  let prev_variable = 0
+  for (const tx of (prevTxs || [])) {
+    if (tx.type === 'income') {
+      prev_income += Number(tx.amount)
+    } else {
+      const cat = tx.category_id ? catMap.get(tx.category_id) : undefined
+      if (cat?.is_fixed) {
+        prev_fixed += Number(tx.amount)
+      } else {
+        prev_variable += Number(tx.amount)
+      }
+    }
+  }
+  const prev_savings = prev_income - prev_fixed - prev_variable
+  const prev_month = { income: prev_income, fixed_expenses: prev_fixed, variable_expenses: prev_variable, savings: prev_savings }
+
   // 5. Tendance 6 derniers mois
   const trend: { month: string; income: number; expenses: number }[] = []
   const [y, m_num] = month.split('-').map(Number)
@@ -163,5 +194,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     month, income, fixed_expenses, variable_expenses, savings, savings_rate,
     card_debt, cards_detail, fixed_breakdown, variable_breakdown, trend, income_transactions,
+    prev_month,
   })
 }

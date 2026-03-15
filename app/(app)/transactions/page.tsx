@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatDate, formatCurrency, groupByDate } from '@/lib/utils'
@@ -13,15 +13,16 @@ import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
 
-type Filter = 'all' | 'income' | 'expense' | 'personal' | 'common' | 'shared'
+type Filter = 'all' | 'income' | 'expense' | 'personal' | 'common' | 'shared' | 'recurring'
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all',      label: 'Tout' },
-  { key: 'income',   label: 'Revenus' },
-  { key: 'expense',  label: 'Dépenses' },
-  { key: 'personal', label: 'Personnel' },
-  { key: 'common',   label: 'Commun' },
-  { key: 'shared',   label: 'Partagé' },
+  { key: 'all',       label: 'Tout' },
+  { key: 'income',    label: 'Revenus' },
+  { key: 'expense',   label: 'Dépenses' },
+  { key: 'personal',  label: 'Personnel' },
+  { key: 'common',    label: 'Commun' },
+  { key: 'shared',    label: 'Partagé' },
+  { key: 'recurring', label: '🔄 Récurrentes' },
 ]
 
 export default function TransactionsPage() {
@@ -31,6 +32,13 @@ export default function TransactionsPage() {
   const [me, setMe] = useState<Profile | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   // Charger l'utilisateur courant + tous les autres ayant au moins une transaction
   useEffect(() => {
@@ -66,7 +74,9 @@ export default function TransactionsPage() {
   const params: Record<string, string> = { month }
   if (filter === 'income' || filter === 'expense') params.type = filter
   if (filter === 'personal' || filter === 'common' || filter === 'shared') params.scope = filter
+  if (filter === 'recurring') params.is_recurring = 'true'
   if (whoFilter !== 'couple') params.user_id = whoFilter
+  if (debouncedSearch) params.search = debouncedSearch
 
   const { data: transactions, loading, refetch } = useFetch<Transaction[]>(
     `/api/transactions?${new URLSearchParams(params)}`
@@ -103,6 +113,18 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-[#fafafa]">Transactions</h1>
         <MonthPicker value={month} onChange={setMonth} />
+      </div>
+
+      {/* Recherche */}
+      <div className="relative mb-3">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          placeholder="Rechercher une transaction..."
+          className="w-full pl-9 pr-4 py-2.5 bg-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder-[#71717a] border border-[#3f3f46] focus:outline-none focus:border-[#e879f9]"
+        />
       </div>
 
       {/* Filtre QUI */}

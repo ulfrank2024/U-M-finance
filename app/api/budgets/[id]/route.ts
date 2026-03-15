@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// PUT /api/categories/:id
+// PUT /api/budgets/:id
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -11,28 +11,21 @@ export async function PUT(
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const { id } = await params
-  const { name, icon, color, is_fixed, sort_order } = await request.json()
+  const { monthly_amount } = await request.json()
 
   const { data, error } = await supabase
-    .from('categories')
-    .update({
-      ...(name !== undefined ? { name } : {}),
-      ...(icon !== undefined ? { icon } : {}),
-      ...(color !== undefined ? { color } : {}),
-      ...(is_fixed !== undefined ? { is_fixed } : {}),
-      ...(sort_order !== undefined ? { sort_order } : {}),
-      updated_at: new Date().toISOString(),
-    })
+    .from('budgets')
+    .update({ monthly_amount: parseFloat(monthly_amount), updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!data) return NextResponse.json({ error: 'Catégorie introuvable' }, { status: 404 })
+  if (!data) return NextResponse.json({ error: 'Budget introuvable' }, { status: 404 })
   return NextResponse.json(data)
 }
 
-// DELETE /api/categories/:id
+// DELETE /api/budgets/:id
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -44,7 +37,7 @@ export async function DELETE(
   const { id } = await params
 
   const { error } = await supabase
-    .from('categories')
+    .from('budgets')
     .delete()
     .eq('id', id)
 

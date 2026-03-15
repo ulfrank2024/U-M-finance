@@ -3,7 +3,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
-import type { ReportData, ReportCardDetail, ReportIncomeTx } from '@/lib/types'
+import type { ReportData, ReportCardDetail, ReportIncomeTx, Budget } from '@/lib/types'
 import MonthPicker from '@/components/ui/MonthPicker'
 import Avatar from '@/components/ui/Avatar'
 
@@ -12,11 +12,25 @@ const MONTH_SHORT: Record<string, string> = {
   '07':'Jul','08':'Aoû','09':'Sep','10':'Oct','11':'Nov','12':'Déc',
 }
 
+function Delta({ current, prev }: { current: number; prev: number }) {
+  const diff = current - prev
+  if (prev === 0 && current === 0) return null
+  const sign = diff >= 0 ? '+' : ''
+  const color = diff >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'
+  return (
+    <p className={`text-[10px] mt-0.5 ${color}`}>
+      {sign}{formatCurrency(diff)} vs mois préc.
+    </p>
+  )
+}
+
 export default function ReportPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
   const { data, loading } = useFetch<ReportData>(`/api/report?month=${month}`)
+  const { data: budgets } = useFetch<Budget[]>('/api/budgets')
 
   const maxTrendVal = data ? Math.max(...data.trend.map(t => Math.max(t.income, t.expenses)), 1) : 1
+  const budgetMap = new Map<string, number>((budgets || []).map(b => [b.category_id, b.monthly_amount]))
 
   return (
     <div className="px-4 pt-6 pb-6 space-y-5">
@@ -42,20 +56,24 @@ export default function ReportPage() {
               <div>
                 <p className="text-[11px] text-[#a1a1aa]">Revenus</p>
                 <p className="text-lg font-bold text-[#22c55e]">{formatCurrency(data.income)}</p>
+                {data.prev_month && <Delta current={data.income} prev={data.prev_month.income} />}
               </div>
               <div>
                 <p className="text-[11px] text-[#a1a1aa]">Charges fixes</p>
                 <p className="text-lg font-bold text-[#f97316]">{formatCurrency(data.fixed_expenses)}</p>
+                {data.prev_month && <Delta current={data.fixed_expenses} prev={data.prev_month.fixed_expenses} />}
               </div>
               <div>
                 <p className="text-[11px] text-[#a1a1aa]">Charges variables</p>
                 <p className="text-lg font-bold text-[#ef4444]">{formatCurrency(data.variable_expenses)}</p>
+                {data.prev_month && <Delta current={data.variable_expenses} prev={data.prev_month.variable_expenses} />}
               </div>
               <div>
                 <p className="text-[11px] text-[#a1a1aa]">Épargne</p>
                 <p className={`text-lg font-bold ${data.savings >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
                   {formatCurrency(data.savings)}
                 </p>
+                {data.prev_month && <Delta current={data.savings} prev={data.prev_month.savings} />}
               </div>
             </div>
             {/* Taux d'épargne */}
@@ -134,16 +152,33 @@ export default function ReportPage() {
               </div>
             ) : (
               <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-                {data.fixed_breakdown.map((c, i) => (
-                  <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < data.fixed_breakdown.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{ backgroundColor: `${c.color}25` }}>
-                      {c.icon}
+                {data.fixed_breakdown.map((c, i) => {
+                  const budget = c.category_id ? budgetMap.get(c.category_id) : undefined
+                  const pct = budget && budget > 0 ? Math.min(100, (c.amount / budget) * 100) : null
+                  const isOver = budget != null && c.amount > budget
+                  const barColor = isOver ? '#ef4444' : pct != null && pct > 70 ? '#f97316' : '#22c55e'
+                  return (
+                    <div key={i} className={`px-4 py-3 ${i < data.fixed_breakdown.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                          style={{ backgroundColor: `${c.color}25` }}>
+                          {c.icon}
+                        </div>
+                        <span className="flex-1 text-sm text-[#d4d4d8]">{c.name}</span>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-[#f97316]">{formatCurrency(c.amount)}</span>
+                          {budget && <span className="text-[10px] text-[#71717a] ml-1">/ {formatCurrency(budget)}</span>}
+                          {isOver && <span className="ml-1 text-[10px] text-[#ef4444] font-semibold">⚠️ Dépassé</span>}
+                        </div>
+                      </div>
+                      {pct !== null && (
+                        <div className="mt-1.5 h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                        </div>
+                      )}
                     </div>
-                    <span className="flex-1 text-sm text-[#d4d4d8]">{c.name}</span>
-                    <span className="text-sm font-semibold text-[#f97316]">{formatCurrency(c.amount)}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
@@ -158,6 +193,10 @@ export default function ReportPage() {
               <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
                 {data.variable_breakdown.map((c, i) => {
                   const pct = data.variable_expenses > 0 ? (c.amount / data.variable_expenses) * 100 : 0
+                  const budget = c.category_id ? budgetMap.get(c.category_id) : undefined
+                  const budgetPct = budget && budget > 0 ? Math.min(100, (c.amount / budget) * 100) : null
+                  const isOver = budget != null && c.amount > budget
+                  const budgetBarColor = isOver ? '#ef4444' : budgetPct != null && budgetPct > 70 ? '#f97316' : '#22c55e'
                   return (
                     <div key={i} className={`px-4 py-3 ${i < data.variable_breakdown.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
                       <div className="flex items-center gap-3 mb-1.5">
@@ -168,12 +207,22 @@ export default function ReportPage() {
                         <span className="flex-1 text-sm text-[#d4d4d8]">{c.name}</span>
                         <div className="text-right">
                           <span className="text-sm font-semibold text-[#ef4444]">{formatCurrency(c.amount)}</span>
-                          <span className="text-[10px] text-[#71717a] ml-1">{Math.round(pct)}%</span>
+                          {budget
+                            ? <span className="text-[10px] text-[#71717a] ml-1">{formatCurrency(c.amount)} / {formatCurrency(budget)}</span>
+                            : <span className="text-[10px] text-[#71717a] ml-1">{Math.round(pct)}%</span>
+                          }
+                          {isOver && <span className="ml-1 text-[10px] text-[#ef4444] font-semibold">⚠️ Dépassé</span>}
                         </div>
                       </div>
-                      <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
-                      </div>
+                      {budgetPct !== null ? (
+                        <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${budgetPct}%`, backgroundColor: budgetBarColor }} />
+                        </div>
+                      ) : (
+                        <div className="h-1.5 bg-[#27272a] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: c.color }} />
+                        </div>
+                      )}
                     </div>
                   )
                 })}

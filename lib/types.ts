@@ -13,10 +13,20 @@ export interface Category {
   icon: string
   color: string
   is_fixed: boolean
+  sort_order?: number
   created_by: string | null
   created_at: string
   updated_at: string
   profiles?: Profile
+}
+
+export interface Budget {
+  id: string
+  category_id: string
+  monthly_amount: number
+  created_by: string
+  created_at: string
+  updated_at: string
 }
 
 export type TransactionType = 'income' | 'expense'
@@ -39,6 +49,9 @@ export interface Transaction {
   created_at: string
   updated_at: string
   updated_by: string | null
+  receipt_url?: string | null
+  is_recurring?: boolean
+  recurring_day?: number | null
   // Relations
   categories?: Category | null
   profiles?: Profile | null
@@ -211,4 +224,10 @@ export interface ReportData {
   variable_breakdown: { category_id: string | null; name: string; icon: string; color: string; amount: number }[]
   trend: { month: string; income: number; expenses: number }[]
   income_transactions: ReportIncomeTx[]
+  prev_month?: {
+    income: number
+    fixed_expenses: number
+    variable_expenses: number
+    savings: number
+  }
 }

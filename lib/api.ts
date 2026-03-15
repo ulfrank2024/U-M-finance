@@ -1,5 +1,5 @@
 import type {
-  BankAccount, BalanceResponse, Category, CreditCard, CreditCardPayment,
+  BankAccount, BalanceResponse, Budget, Category, CreditCard, CreditCardPayment,
   Profile, Project, ProjectContribution, ReportData, SharedGroup, Transaction
 } from './types'
 
@@ -86,3 +86,12 @@ export const updateProfile = (body: { display_name?: string; avatar_color?: stri
 
 // Report
 export const fetchReport = (month: string) => req<ReportData>(`/api/report?month=${month}`)
+
+// Budgets
+export const fetchBudgets = () => req<Budget[]>('/api/budgets')
+export const createBudget = (body: { category_id: string; monthly_amount: number }) =>
+  req<Budget>('/api/budgets', { method: 'POST', body: JSON.stringify(body) })
+export const updateBudget = (id: string, body: { monthly_amount: number }) =>
+  req<Budget>(`/api/budgets/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+export const deleteBudget = (id: string) =>
+  req<{ success: boolean }>(`/api/budgets/${id}`, { method: 'DELETE' })

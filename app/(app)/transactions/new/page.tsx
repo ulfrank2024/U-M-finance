@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts, addCardPayment } from '@/lib/api'
+import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/utils'
 import type { Category, SharedGroup, CreditCard, BankAccount } from '@/lib/types'
 import PickerModal from '@/components/ui/PickerModal'
@@ -36,6 +37,11 @@ export default function NewTransactionPage() {
   const [transferRecipient, setTransferRecipient] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurringDay, setRecurringDay] = useState<number>(new Date().getDate())
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [uploadingReceipt, setUploadingReceipt] = useState(false)
 
   const [categories, setCategories] = useState<Category[]>([])
   const [sharedGroups, setSharedGroups] = useState<SharedGroup[]>([])
@@ -56,6 +62,28 @@ export default function NewTransactionPage() {
     fetchCreditCards(false).then(setAllCreditCards).catch(() => {})
     fetchBankAccounts(true).then(setBankAccounts).catch(() => {})
   }, [])
+
+  async function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setReceiptFile(file)
+    setUploadingReceipt(true)
+    setError('')
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `receipts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path)
+      setReceiptUrl(urlData.publicUrl)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur upload reçu')
+      setReceiptFile(null)
+    } finally {
+      setUploadingReceipt(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -102,6 +130,9 @@ export default function NewTransactionPage() {
         foreign_amount: foreignAmt ?? undefined,
         foreign_currency: isTransfer ? foreignCurrency : undefined,
         created_at: new Date(date).toISOString(),
+        receipt_url: receiptUrl ?? undefined,
+        is_recurring: isRecurring || undefined,
+        recurring_day: isRecurring ? recurringDay : undefined,
       } as Parameters<typeof createTransaction>[0])
       router.push('/transactions')
     } catch (err: unknown) {
@@ -367,6 +398,63 @@ export default function NewTransactionPage() {
         <div>
           <label className="text-xs text-[#a1a1aa] mb-1 block">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+
+        {/* Transaction récurrente */}
+        <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+          <button type="button" onClick={() => setIsRecurring(!isRecurring)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm"
+          >
+            <span className="flex items-center gap-2 text-[#a1a1aa]">
+              <span>🔄</span> Transaction récurrente
+            </span>
+            <span className={`text-xs px-2 py-0.5 rounded-full transition-colors ${isRecurring ? 'bg-[#818cf8]/20 text-[#818cf8]' : 'bg-[#27272a] text-[#71717a]'}`}>
+              {isRecurring ? 'Activé' : 'Optionnel'}
+            </span>
+          </button>
+          {isRecurring && (
+            <div className="px-4 pb-4 border-t border-[#3f3f46]">
+              <div className="pt-3">
+                <label className="text-xs text-[#a1a1aa] mb-1 block">Jour du mois (1–31)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={recurringDay}
+                  onChange={e => setRecurringDay(parseInt(e.target.value) || 1)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Photo de reçu */}
+        <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] p-4">
+          <label className="text-xs text-[#a1a1aa] mb-2 block">📎 Ajouter un reçu (optionnel)</label>
+          <label className="cursor-pointer flex items-center gap-3">
+            <span className="px-4 py-2 bg-[#27272a] rounded-xl text-sm text-[#a1a1aa] hover:bg-[#3f3f46] transition-colors">
+              {uploadingReceipt ? 'Envoi...' : receiptFile ? receiptFile.name : 'Choisir une image'}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleReceiptChange}
+              disabled={uploadingReceipt}
+            />
+          </label>
+          {receiptUrl && !uploadingReceipt && (
+            <div className="mt-2 flex items-center gap-2">
+              <a href={receiptUrl} target="_blank" rel="noopener noreferrer"
+                className="text-xs text-[#e879f9] underline">
+                Voir le reçu
+              </a>
+              <button type="button" onClick={() => { setReceiptUrl(null); setReceiptFile(null) }}
+                className="text-xs text-[#71717a] hover:text-[#ef4444]">
+                ✕ Retirer
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Envoi en devises étrangères */}

@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
   const sharedGroupId   = searchParams.get('shared_group_id')
   const creditCardId    = searchParams.get('credit_card_id')
   const userId          = searchParams.get('user_id')
+  const search          = searchParams.get('search')
+  const isRecurring     = searchParams.get('is_recurring')
 
   let query = supabase
     .from('transactions')
@@ -34,6 +36,8 @@ export async function GET(request: NextRequest) {
   if (sharedGroupId)  query = query.eq('shared_group_id', sharedGroupId)
   if (creditCardId)   query = query.eq('credit_card_id', creditCardId)
   if (userId)         query = query.eq('user_id', userId)
+  if (search)         query = query.ilike('description', `%${search}%`)
+  if (isRecurring === 'true') query = query.eq('is_recurring', true)
 
   if (month) {
     const [year, m] = month.split('-').map(Number)
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
   const body = await request.json()
-  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, bank_account_id, exchange_rate, foreign_amount, foreign_currency, created_at } = body
+  const { amount, description, category_id, type, scope, shared_group_id, credit_card_id, bank_account_id, exchange_rate, foreign_amount, foreign_currency, created_at, receipt_url, is_recurring, recurring_day } = body
 
   if (!amount || !type || !['income', 'expense'].includes(type)) {
     return NextResponse.json({ error: 'Données invalides' }, { status: 400 })
@@ -78,6 +82,9 @@ export async function POST(request: NextRequest) {
       ...(exchange_rate    != null ? { exchange_rate }    : {}),
       ...(foreign_amount   != null ? { foreign_amount }   : {}),
       ...(foreign_currency != null ? { foreign_currency } : {}),
+      ...(receipt_url      != null ? { receipt_url }      : {}),
+      ...(is_recurring     != null ? { is_recurring }     : {}),
+      ...(recurring_day    != null ? { recurring_day }    : {}),
       user_id:          user.id,
       updated_by:       user.id,
       created_at:       created_at || new Date().toISOString(),
