@@ -56,16 +56,6 @@ export default function BalanceCard({ data }: Props) {
         </span>
       </div>
 
-      {/* Message de balance */}
-      {balance && (
-        <div className="mt-3 p-2.5 rounded-xl text-center" style={{ background: 'rgba(232,121,249,0.1)', border: '1px solid rgba(232,121,249,0.2)' }}>
-          <p className="text-xs text-[#e879f9]">
-            💸 <span className="font-semibold">{balance.debtor}</span> doit{' '}
-            <span className="font-bold">{formatCurrency(balance.amount)}</span>{' '}
-            à <span className="font-semibold">{balance.creditor}</span>
-          </p>
-        </div>
-      )}
     </div>
   )
 }
