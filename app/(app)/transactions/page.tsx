@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Trash2, Search } from 'lucide-react'
+import { Trash2, Search, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatDate, formatCurrency, groupByDate } from '@/lib/utils'
@@ -34,6 +34,7 @@ export default function TransactionsPage() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300)
@@ -71,6 +72,17 @@ export default function TransactionsPage() {
     })
   }, [])
 
+  // Realtime sync
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('realtime-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => refetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_card_payments' }, () => refetchCards())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [refetch, refetchCards])
+
   const params: Record<string, string> = { month }
   if (filter === 'income' || filter === 'expense') params.type = filter
   if (filter === 'personal' || filter === 'common' || filter === 'shared') params.scope = filter
@@ -81,7 +93,7 @@ export default function TransactionsPage() {
   const { data: transactions, loading, refetch } = useFetch<Transaction[]>(
     `/api/transactions?${new URLSearchParams(params)}`
   )
-  const { data: cardPayments } = useFetch<CardPaymentListItem[]>(
+  const { data: cardPayments, refetch: refetchCards } = useFetch<CardPaymentListItem[]>(
     filter === 'income' || filter === 'personal' || filter === 'common' || filter === 'shared'
       ? null
       : `/api/credit-card-payments?month=${month}`
@@ -111,7 +123,13 @@ export default function TransactionsPage() {
     <div className="px-4 pt-6 pb-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-[#fafafa]">Transactions</h1>
+        <h1 className="text-xl font-bold text-[#fafafa] flex items-center gap-2">
+          Transactions
+          <span className="flex items-center gap-1 text-[10px] font-normal text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded-full">
+            <Zap size={9} className="fill-current" />
+            Live
+          </span>
+        </h1>
         <MonthPicker value={month} onChange={setMonth} />
       </div>
 
@@ -194,6 +212,33 @@ export default function TransactionsPage() {
           </button>
         ))}
       </div>
+
+      {/* Bouton génération automatique (affiché seulement en vue récurrentes) */}
+      {filter === 'recurring' && (
+        <div className="mb-4 p-3 bg-[#27272a] rounded-2xl border border-[#3f3f46]">
+          <p className="text-xs text-[#a1a1aa] mb-2">Créer automatiquement les transactions récurrentes pour ce mois</p>
+          <button
+            onClick={async () => {
+              setGenerating(true)
+              try {
+                const res = await fetch('/api/transactions/generate-recurring', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ month }),
+                })
+                const data = await res.json()
+                if (data.created > 0) refetch()
+                setGenerating(false)
+              } catch { setGenerating(false) }
+            }}
+            disabled={generating}
+            className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
+          >
+            {generating ? 'Génération...' : `🔄 Générer pour ${month}`}
+          </button>
+        </div>
+      )}
 
       {/* Liste */}
       {loading ? (
