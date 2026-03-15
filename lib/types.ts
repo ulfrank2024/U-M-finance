@@ -76,6 +76,18 @@ export interface BankAccount {
   owner?: Profile | null
 }
 
+export interface CardPaymentListItem {
+  id: string
+  amount: number
+  payment_date: string
+  note: string | null
+  user_id: string
+  credit_card_id: string
+  credit_cards: { id: string; name: string; last_four: string | null } | null
+  profiles: { id: string; display_name: string; avatar_color: string; avatar_url: string | null } | null
+  bank_accounts: { id: string; name: string; color: string } | null
+}
+
 export interface CreditCardPayment {
   id: string
   credit_card_id: string

@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
-import { formatMonth, formatDate, groupByDate } from '@/lib/utils'
+import { formatMonth, formatDate, formatCurrency, groupByDate } from '@/lib/utils'
 import { deleteTransaction } from '@/lib/api'
-import type { Transaction, Profile } from '@/lib/types'
+import type { Transaction, Profile, CardPaymentListItem } from '@/lib/types'
 import TransactionCard from '@/components/TransactionCard'
 import Avatar from '@/components/ui/Avatar'
 import MonthPicker from '@/components/ui/MonthPicker'
@@ -80,12 +80,27 @@ export default function TransactionsPage() {
   const { data: transactions, loading, refetch } = useFetch<Transaction[]>(
     `/api/transactions?${new URLSearchParams(params)}`
   )
+  const { data: cardPayments } = useFetch<CardPaymentListItem[]>(
+    filter === 'income' || filter === 'personal' || filter === 'common' || filter === 'shared'
+      ? null
+      : `/api/credit-card-payments?month=${month}`
+  )
 
   function handleDelete(id: string) {
     setPendingDelete(id)
   }
 
   const groups = groupByDate(transactions || [])
+
+  // Ajouter les remboursements cartes aux mêmes groupes par date
+  const filteredPayments = (cardPayments || []).filter(p =>
+    whoFilter === 'couple' || p.user_id === whoFilter
+  )
+  for (const p of filteredPayments) {
+    const d = p.payment_date.split('T')[0]
+    if (!groups[d]) groups[d] = []
+  }
+
   const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a))
   const partner = profiles.find(p => p.id !== me?.id)
 
@@ -205,6 +220,36 @@ export default function TransactionsPage() {
                         <Trash2 size={16} />
                       </button>
                     )}
+                  </div>
+                ))}
+                {/* Remboursements cartes du jour */}
+                {filteredPayments.filter(p => p.payment_date.split('T')[0] === date).map(p => (
+                  <div key={`pay-${p.id}`} className="flex items-center gap-3 bg-[#18181b] rounded-2xl px-3 py-3 border border-[#3f3f46]">
+                    <div className="w-10 h-10 rounded-xl bg-[#8b5cf6]/15 flex items-center justify-center text-lg flex-shrink-0">
+                      💳
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#fafafa] truncate">
+                        Remb. {p.credit_cards?.name}{p.credit_cards?.last_four ? ` ••${p.credit_cards.last_four}` : ''}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {p.profiles && (
+                          <Avatar
+                            displayName={p.profiles.display_name}
+                            color={p.profiles.avatar_color}
+                            avatarUrl={p.profiles.avatar_url}
+                            size="xs"
+                          />
+                        )}
+                        {p.bank_accounts && (
+                          <span className="text-[10px] text-[#71717a]">🏦 {p.bank_accounts.name}</span>
+                        )}
+                        {p.note && <span className="text-[10px] text-[#71717a] truncate">{p.note}</span>}
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-[#8b5cf6] flex-shrink-0">
+                      -{formatCurrency(p.amount)}
+                    </span>
                   </div>
                 ))}
               </div>

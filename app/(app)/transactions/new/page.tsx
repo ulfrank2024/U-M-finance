@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts, addCardPayment } from '@/lib/api'
+import { formatCurrency } from '@/lib/utils'
 import type { Category, SharedGroup, CreditCard, BankAccount } from '@/lib/types'
 import PickerModal from '@/components/ui/PickerModal'
 
@@ -62,6 +63,16 @@ export default function NewTransactionPage() {
     setLoading(true)
     setError('')
     try {
+      // Validation solde pour paiement débit
+      if (type === 'expense' && paymentMethod === 'debit' && bankAccountId) {
+        const account = bankAccounts.find(a => a.id === bankAccountId)
+        if (account && account.balance < parseFloat(amount)) {
+          setError(`Solde insuffisant — disponible : ${formatCurrency(account.balance)}`)
+          setLoading(false)
+          return
+        }
+      }
+
       if (type === 'card_payment') {
         if (!creditCardId) { setError('Sélectionne une carte'); setLoading(false); return }
         await addCardPayment(creditCardId, {
@@ -70,7 +81,7 @@ export default function NewTransactionPage() {
           payment_date: date,
           bank_account_id: bankAccountId || undefined,
         })
-        router.push('/credit-cards')
+        router.push('/transactions')
         return
       }
       const rate = isTransfer && exchangeRate ? parseFloat(exchangeRate) : null
@@ -154,17 +165,30 @@ export default function NewTransactionPage() {
               </div>
             </div>
             <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Note (optionnel)" />
-            <div>
+            <div className="space-y-2">
               <label className="text-xs text-[#a1a1aa] mb-1 block">Carte à rembourser *</label>
               <button type="button" onClick={() => setShowCardPicker(true)}
                 className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm">
-                <span className={allCreditCards.find(c => c.id === creditCardId) ? 'text-[#fafafa]' : 'text-[#71717a]'}>
-                  {allCreditCards.find(c => c.id === creditCardId)
-                    ? `💳 ${allCreditCards.find(c => c.id === creditCardId)!.name}${allCreditCards.find(c => c.id === creditCardId)!.last_four ? ` ••${allCreditCards.find(c => c.id === creditCardId)!.last_four}` : ''}`
-                    : 'Sélectionner la carte'}
-                </span>
+                {(() => {
+                  const sc = allCreditCards.find(c => c.id === creditCardId)
+                  return (
+                    <span className={sc ? 'text-[#fafafa]' : 'text-[#71717a]'}>
+                      {sc ? `💳 ${sc.name}${sc.last_four ? ` ••${sc.last_four}` : ''}` : 'Sélectionner la carte'}
+                    </span>
+                  )
+                })()}
                 <ChevronRight size={16} className="text-[#71717a]" />
               </button>
+              {(() => {
+                const sc = allCreditCards.find(c => c.id === creditCardId)
+                if (!sc || sc.current_balance <= 0) return null
+                return (
+                  <div className="flex items-center justify-between px-3 py-2 bg-[#ef4444]/10 rounded-xl">
+                    <span className="text-xs text-[#a1a1aa]">Solde dû</span>
+                    <span className="text-xs font-semibold text-[#ef4444]">{formatCurrency(sc.current_balance)}</span>
+                  </div>
+                )
+              })()}
             </div>
             {bankAccounts.length > 0 && (
               <div>
@@ -289,14 +313,28 @@ export default function NewTransactionPage() {
               ))}
             </div>
             {paymentMethod === 'debit' && bankAccounts.length > 0 && (
-              <button type="button" onClick={() => setShowAccountPicker(true)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm"
-              >
-                <span className={selectedAccount ? 'text-[#fafafa]' : 'text-[#71717a]'}>
-                  {selectedAccount ? `🏦 ${selectedAccount.name}` : 'Choisir un compte'}
-                </span>
-                <ChevronRight size={16} className="text-[#71717a]" />
-              </button>
+              <div className="space-y-2">
+                <button type="button" onClick={() => setShowAccountPicker(true)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-[#27272a] rounded-xl text-sm"
+                >
+                  <span className={selectedAccount ? 'text-[#fafafa]' : 'text-[#71717a]'}>
+                    {selectedAccount ? `🏦 ${selectedAccount.name}` : 'Choisir un compte'}
+                  </span>
+                  <ChevronRight size={16} className="text-[#71717a]" />
+                </button>
+                {selectedAccount && (() => {
+                  const insufficient = amount && !isNaN(parseFloat(amount)) && selectedAccount.balance < parseFloat(amount)
+                  return (
+                    <div className={`flex items-center justify-between px-3 py-2 rounded-xl ${insufficient ? 'bg-[#ef4444]/10' : 'bg-[#27272a]'}`}>
+                      <span className="text-xs text-[#a1a1aa]">Solde disponible</span>
+                      <span className={`text-xs font-semibold ${insufficient ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+                        {formatCurrency(selectedAccount.balance)}
+                        {insufficient && ' ⚠️'}
+                      </span>
+                    </div>
+                  )
+                })()}
+              </div>
             )}
             {paymentMethod === 'credit' && creditCards.length > 0 && (
               <button type="button" onClick={() => setShowCardPicker(true)}
