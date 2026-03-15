@@ -138,19 +138,28 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
             <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
           </div>
-          <div className="bg-[#18181b] rounded-2xl p-3 border border-[#3f3f46]">
-            <div className="grid grid-cols-2 gap-2">
-              {(creditCards || []).filter(c => c.current_balance > 0).slice(0, 4).map(c => (
-                <div key={c.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+          <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+            {(creditCards || []).filter(c => c.current_balance > 0).slice(0, 4).map((c, i, arr) => (
+              <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  {c.is_shared ? (
+                    <span className="text-sm flex-shrink-0">💑</span>
+                  ) : c.owner ? (
+                    <Avatar
+                      displayName={c.owner.display_name}
+                      color={c.owner.avatar_color}
+                      avatarUrl={(c.owner as { avatar_url?: string | null }).avatar_url ?? null}
+                      size="xs"
+                    />
+                  ) : (
                     <CreditCard size={12} className="text-[#e879f9] flex-shrink-0" />
-                    <span className="text-[11px] text-[#a1a1aa] truncate">{c.name}</span>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(c.current_balance)}</span>
+                  )}
+                  <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}</span>
                 </div>
-              ))}
-            </div>
-            <div className="mt-2 pt-2 border-t border-[#3f3f46] flex justify-between items-center">
+                <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+              </div>
+            ))}
+            <div className="px-3 py-2.5 border-t border-[#3f3f46] flex justify-between items-center bg-[#ef4444]/5">
               <span className="text-xs text-[#a1a1aa]">Total dû</span>
               <span className="text-sm font-bold text-[#ef4444]">{formatCurrency(totalCardDebt)}</span>
             </div>
