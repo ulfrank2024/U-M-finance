@@ -44,7 +44,7 @@ export default function AccountsPage() {
     } finally { setAddLoading(false) }
   }
 
-  function AccountSection({ title, items }: { title: string; items: BankAccount[] }) {
+  function AccountSection({ title, items, showOwner = false }: { title: string; items: BankAccount[]; showOwner?: boolean }) {
     if (!items.length) return null
     return (
       <section>
@@ -59,7 +59,7 @@ export default function AccountsPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-[#fafafa] text-sm">{acc.name}</p>
-                    {acc.owner && (
+                    {showOwner && acc.owner && (
                       <div className="flex items-center gap-1 mt-0.5">
                         <Avatar displayName={acc.owner.display_name} color={acc.owner.avatar_color} avatarUrl={acc.owner.avatar_url} size="xs" />
                         <span className="text-[11px] text-[#a1a1aa]">{acc.owner.display_name}</span>
@@ -132,7 +132,7 @@ export default function AccountsPage() {
           ) : (
             <div className="space-y-5">
               <AccountSection title="Mes comptes" items={myAccounts} />
-              <AccountSection title={`Comptes de ${partnerName}`} items={partnerAccounts} />
+              <AccountSection title={`Comptes de ${partnerName}`} items={partnerAccounts} showOwner />
               <AccountSection title="Comptes communs" items={sharedAccounts} />
             </div>
           )}
