@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Wallet, CreditCard } from 'lucide-react'
+import { Wallet, CreditCard, ChevronDown, ChevronRight } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
@@ -14,6 +14,8 @@ import Avatar from '@/components/ui/Avatar'
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
+  const [accountsOpen, setAccountsOpen] = useState(false)
+  const [cardsOpen, setCardsOpen] = useState(false)
 
   const { data: balance, loading: bLoading } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const { data: transactions } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
@@ -155,26 +157,34 @@ export default function DashboardPage() {
 
         return (
           <section>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-[#fafafa]">Comptes bancaires</h2>
-              <Link href="/accounts" className="text-xs text-[#e879f9]">Gérer</Link>
-            </div>
-            <div className="space-y-3">
-              {ownerEntries.map(([ownerId, group]) => (
-                <div key={ownerId}>
-                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">
-                    {ownerId === profile?.id ? 'Mes comptes' : `Comptes de ${group.name.split(' ')[0]}`}
-                  </p>
-                  <AccountGrid items={group.items} />
-                </div>
-              ))}
-              {sharedAccounts.length > 0 && (
-                <div>
-                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">💑 Communs</p>
-                  <AccountGrid items={sharedAccounts} />
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => setAccountsOpen(o => !o)}
+              className="flex items-center justify-between w-full mb-2"
+            >
+              <div className="flex items-center gap-1.5">
+                {accountsOpen ? <ChevronDown size={14} className="text-[#a1a1aa]" /> : <ChevronRight size={14} className="text-[#a1a1aa]" />}
+                <h2 className="text-sm font-semibold text-[#fafafa]">Comptes bancaires</h2>
+              </div>
+              <Link href="/accounts" onClick={e => e.stopPropagation()} className="text-xs text-[#e879f9]">Gérer</Link>
+            </button>
+            {accountsOpen && (
+              <div className="space-y-3">
+                {ownerEntries.map(([ownerId, group]) => (
+                  <div key={ownerId}>
+                    <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">
+                      {ownerId === profile?.id ? 'Mes comptes' : `Comptes de ${group.name.split(' ')[0]}`}
+                    </p>
+                    <AccountGrid items={group.items} />
+                  </div>
+                ))}
+                {sharedAccounts.length > 0 && (
+                  <div>
+                    <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">💑 Communs</p>
+                    <AccountGrid items={sharedAccounts} />
+                  </div>
+                )}
+              </div>
+            )}
           </section>
         )
       })()}
@@ -193,51 +203,61 @@ export default function DashboardPage() {
 
         return (
           <section>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
-              <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
-            </div>
-            <div className="space-y-3">
-              {cardEntries.map(([ownerId, group]) => {
-                const groupDebt = group.items.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
-                if (groupDebt === 0) return null
-                return (
-                  <div key={ownerId}>
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
-                        {ownerId === profile?.id ? 'Mes cartes' : `Cartes de ${group.name.split(' ')[0]}`}
-                      </p>
-                      <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(groupDebt)}</span>
-                    </div>
-                    <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-                      {group.items.filter(c => c.current_balance > 0).map((c, i, arr) => (
-                        <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
-                          <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
-                          <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+            <button
+              onClick={() => setCardsOpen(o => !o)}
+              className="flex items-center justify-between w-full mb-2"
+            >
+              <div className="flex items-center gap-1.5">
+                {cardsOpen ? <ChevronDown size={14} className="text-[#a1a1aa]" /> : <ChevronRight size={14} className="text-[#a1a1aa]" />}
+                <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
+              </div>
+              <Link href="/credit-cards" onClick={e => e.stopPropagation()} className="text-xs text-[#e879f9]">Détails</Link>
+            </button>
+            {cardsOpen && (
+              <>
+                <div className="space-y-3">
+                  {cardEntries.map(([ownerId, group]) => {
+                    const groupDebt = group.items.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
+                    if (groupDebt === 0) return null
+                    return (
+                      <div key={ownerId}>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
+                            {ownerId === profile?.id ? 'Mes cartes' : `Cartes de ${group.name.split(' ')[0]}`}
+                          </p>
+                          <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(groupDebt)}</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-              {sharedCards.filter(c => c.current_balance > 0).length > 0 && (
-                <div>
-                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1">Cartes communes</p>
-                  <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-                    {sharedCards.filter(c => c.current_balance > 0).map((c, i, arr) => (
-                      <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
-                        <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
-                        <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                        <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                          {group.items.filter(c => c.current_balance > 0).map((c, i, arr) => (
+                            <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                              <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
+                              <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })}
+                  {sharedCards.filter(c => c.current_balance > 0).length > 0 && (
+                    <div>
+                      <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1">Cartes communes</p>
+                      <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                        {sharedCards.filter(c => c.current_balance > 0).map((c, i, arr) => (
+                          <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                            <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
+                            <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="px-3 py-2.5 mt-2 flex justify-between items-center bg-[#ef4444]/5 rounded-2xl border border-[#ef4444]/20">
-              <span className="text-xs text-[#a1a1aa]">Total dû (couple)</span>
-              <span className="text-sm font-bold text-[#ef4444]">{formatCurrency(totalCardDebt)}</span>
-            </div>
+                <div className="px-3 py-2.5 mt-2 flex justify-between items-center bg-[#ef4444]/5 rounded-2xl border border-[#ef4444]/20">
+                  <span className="text-xs text-[#a1a1aa]">Total dû (couple)</span>
+                  <span className="text-sm font-bold text-[#ef4444]">{formatCurrency(totalCardDebt)}</span>
+                </div>
+              </>
+            )}
           </section>
         )
       })()}
