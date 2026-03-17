@@ -6,7 +6,6 @@ import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
-import TransactionCard from '@/components/TransactionCard'
 import ProjectCard from '@/components/ProjectCard'
 import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
@@ -16,6 +15,7 @@ export default function DashboardPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [cardsOpen, setCardsOpen] = useState(false)
+  const [transactionsOpen, setTransactionsOpen] = useState(true)
 
   const { data: balance, loading: bLoading } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const { data: transactions } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
@@ -289,16 +289,51 @@ export default function DashboardPage() {
 
       {/* Dernières transactions */}
       <section>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-[#fafafa]">Dernières transactions</h2>
-          <Link href="/transactions" className="text-xs text-[#e879f9]">Voir tout</Link>
-        </div>
-        {recent.length === 0 ? (
-          <EmptyState icon="💳" title="Aucune transaction" description="Ajoutez votre première dépense ou revenu" />
-        ) : (
-          <div className="space-y-2">
-            {recent.map(t => <TransactionCard key={t.id} transaction={t} />)}
+        <button
+          onClick={() => setTransactionsOpen(o => !o)}
+          className="flex items-center justify-between w-full mb-2"
+        >
+          <div className="flex items-center gap-1.5">
+            {transactionsOpen ? <ChevronDown size={14} className="text-[#a1a1aa]" /> : <ChevronRight size={14} className="text-[#a1a1aa]" />}
+            <h2 className="text-sm font-semibold text-[#fafafa]">Dernières transactions</h2>
           </div>
+          <Link href="/transactions" onClick={e => e.stopPropagation()} className="text-xs text-[#e879f9]">Voir tout</Link>
+        </button>
+        {transactionsOpen && (
+          recent.length === 0 ? (
+            <EmptyState icon="💳" title="Aucune transaction" description="Ajoutez votre première dépense ou revenu" />
+          ) : (
+            <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+              {recent.map((t, i) => {
+                const isIncome = t.type === 'income'
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/transactions/${t.id}`}
+                    className={`flex items-center gap-3 px-4 py-3 active:bg-[#27272a] ${i < recent.length - 1 ? 'border-b border-[#27272a]' : ''}`}
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                      style={{ backgroundColor: t.categories?.color ? `${t.categories.color}25` : '#27272a' }}
+                    >
+                      {t.categories?.icon || '📁'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#fafafa] truncate">
+                        {t.description || t.categories?.name || (isIncome ? 'Revenu' : 'Dépense')}
+                      </p>
+                      <p className="text-[11px] text-[#a1a1aa] truncate">
+                        {t.categories?.name}{t.bank_accounts ? ` · 🏦 ${t.bank_accounts.name}` : t.credit_cards ? ` · 💳 ${t.credit_cards.name}` : ''}
+                      </p>
+                    </div>
+                    <span className={`text-sm font-semibold flex-shrink-0 ${isIncome ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                      {isIncome ? '+' : '-'}{formatCurrency(t.amount)}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          )
         )}
       </section>
     </div>
