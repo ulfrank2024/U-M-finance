@@ -131,41 +131,52 @@ export default function DashboardPage() {
         )
       })()}
 
-      {/* Cartes de crédit - résumé */}
-      {(creditCards || []).length > 0 && totalCardDebt > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
-            <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
-          </div>
-          <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-            {(creditCards || []).filter(c => c.current_balance > 0).slice(0, 4).map((c, i, arr) => (
-              <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
-                <div className="flex items-center gap-2 min-w-0">
-                  {c.is_shared ? (
-                    <span className="text-sm flex-shrink-0">💑</span>
-                  ) : c.owner ? (
-                    <Avatar
-                      displayName={c.owner.display_name}
-                      color={c.owner.avatar_color}
-                      avatarUrl={(c.owner as { avatar_url?: string | null }).avatar_url ?? null}
-                      size="xs"
-                    />
-                  ) : (
-                    <CreditCard size={12} className="text-[#e879f9] flex-shrink-0" />
-                  )}
-                  <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}</span>
-                </div>
-                <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+      {/* Cartes de crédit - résumé séparé par propriétaire */}
+      {(creditCards || []).length > 0 && totalCardDebt > 0 && (() => {
+        const myCards      = (creditCards || []).filter(c => !c.is_shared && (c.owner_id === profile?.id || c.owner_id === null))
+        const partnerCards = (creditCards || []).filter(c => !c.is_shared && c.owner_id !== null && c.owner_id !== profile?.id)
+        const sharedCards  = (creditCards || []).filter(c => c.is_shared)
+        const partnerFirstName = partnerCards[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
+
+        const CardGroup = ({ items, label }: { items: typeof creditCards; label: string }) => {
+          if (!items || items.length === 0) return null
+          const groupDebt = items.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] text-[#71717a] uppercase tracking-wider">{label}</p>
+                <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(groupDebt)}</span>
               </div>
-            ))}
-            <div className="px-3 py-2.5 border-t border-[#3f3f46] flex justify-between items-center bg-[#ef4444]/5">
-              <span className="text-xs text-[#a1a1aa]">Total dû</span>
+              <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                {items.filter(c => c.current_balance > 0).map((c, i, arr) => (
+                  <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                    <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
+                    <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <section>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-[#fafafa]">Cartes de crédit</h2>
+              <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
+            </div>
+            <div className="space-y-3">
+              <CardGroup items={myCards} label="Mes cartes" />
+              <CardGroup items={partnerCards} label={`Cartes de ${partnerFirstName}`} />
+              <CardGroup items={sharedCards} label="Cartes communes" />
+            </div>
+            <div className="px-3 py-2.5 mt-2 flex justify-between items-center bg-[#ef4444]/5 rounded-2xl border border-[#ef4444]/20">
+              <span className="text-xs text-[#a1a1aa]">Total dû (couple)</span>
               <span className="text-sm font-bold text-[#ef4444]">{formatCurrency(totalCardDebt)}</span>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )
+      })()}
 
       {/* Projets */}
       {activeProjects.length > 0 && (
