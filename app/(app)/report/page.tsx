@@ -299,7 +299,7 @@ export default function ReportPage() {
                       {/* Ligne dépenses vs remboursements */}
                       <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#27272a]">
                         <div className="text-center">
-                          <p className="text-[10px] text-[#a1a1aa] mb-0.5">Total dépensé</p>
+                          <p className="text-[10px] text-[#a1a1aa] mb-0.5">Dépensé (cumul)</p>
                           <p className="text-xs font-semibold text-[#ef4444]">{formatCurrency(card.total_spent)}</p>
                         </div>
                         <div className="text-center">

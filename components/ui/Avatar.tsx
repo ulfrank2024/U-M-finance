@@ -24,7 +24,7 @@ export default function Avatar({ displayName, email, color = '#6366f1', size = '
       <div className={`${cls} rounded-full overflow-hidden flex-shrink-0`}>
         <Image
           src={avatarUrl}
-          alt={displayName || 'Avatar'}
+          alt=""
           width={px}
           height={px}
           className="w-full h-full object-cover"
