@@ -75,10 +75,16 @@ export default function DashboardPage() {
 
       {/* Comptes bancaires */}
       {(bankAccounts || []).length > 0 && (() => {
-        const myAccounts      = (bankAccounts || []).filter(a => !a.is_shared && (a.owner_id === profile?.id || a.owner_id === null))
-        const partnerAccounts = (bankAccounts || []).filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== profile?.id)
-        const partnerFirstName = partnerAccounts[0]?.owner?.display_name || 'Partenaire'
         const sharedAccounts  = (bankAccounts || []).filter(a => a.is_shared)
+        // Grouper par propriétaire (owner.id) pour afficher un bloc par personne
+        const ownerMap = new Map<string, { name: string; items: BankAccount[] }>()
+        ;(bankAccounts || []).filter(a => !a.is_shared).forEach(a => {
+          const id = a.owner?.id ?? a.owner_id ?? 'unknown'
+          const name = a.owner?.display_name ?? 'Inconnu'
+          if (!ownerMap.has(id)) ownerMap.set(id, { name, items: [] })
+          ownerMap.get(id)!.items.push(a)
+        })
+        const ownerEntries = [...ownerMap.entries()].sort(([id]) => id === profile?.id ? -1 : 1)
 
         const AccountGrid = ({ items }: { items: BankAccount[] }) => (
           <div className="grid grid-cols-2 gap-2">
@@ -106,20 +112,14 @@ export default function DashboardPage() {
               <Link href="/accounts" className="text-xs text-[#e879f9]">Gérer</Link>
             </div>
             <div className="space-y-3">
-              {myAccounts.length > 0 && (
-                <div>
-                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">Mes comptes</p>
-                  <AccountGrid items={myAccounts} />
-                </div>
-              )}
-              {partnerAccounts.length > 0 && (
-                <div>
+              {ownerEntries.map(([ownerId, group]) => (
+                <div key={ownerId}>
                   <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">
-                    Comptes de {partnerFirstName}
+                    {ownerId === profile?.id ? 'Mes comptes' : `Comptes de ${group.name.split(' ')[0]}`}
                   </p>
-                  <AccountGrid items={partnerAccounts} />
+                  <AccountGrid items={group.items} />
                 </div>
-              )}
+              ))}
               {sharedAccounts.length > 0 && (
                 <div>
                   <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1.5">💑 Communs</p>
@@ -131,33 +131,17 @@ export default function DashboardPage() {
         )
       })()}
 
-      {/* Cartes de crédit - résumé séparé par propriétaire */}
+      {/* Cartes de crédit - groupées par propriétaire */}
       {(creditCards || []).length > 0 && totalCardDebt > 0 && (() => {
-        const myCards      = (creditCards || []).filter(c => !c.is_shared && (c.owner_id === profile?.id || c.owner_id === null))
-        const partnerCards = (creditCards || []).filter(c => !c.is_shared && c.owner_id !== null && c.owner_id !== profile?.id)
-        const sharedCards  = (creditCards || []).filter(c => c.is_shared)
-        const partnerFirstName = partnerCards[0]?.owner?.display_name?.split(' ')[0] || 'Partenaire'
-
-        const CardGroup = ({ items, label }: { items: typeof creditCards; label: string }) => {
-          if (!items || items.length === 0) return null
-          const groupDebt = items.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
-          return (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-[11px] text-[#71717a] uppercase tracking-wider">{label}</p>
-                <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(groupDebt)}</span>
-              </div>
-              <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-                {items.filter(c => c.current_balance > 0).map((c, i, arr) => (
-                  <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
-                    <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
-                    <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        }
+        const sharedCards = (creditCards || []).filter(c => c.is_shared)
+        const cardOwnerMap = new Map<string, { name: string; items: CreditCardType[] }>()
+        ;(creditCards || []).filter(c => !c.is_shared).forEach(c => {
+          const id = c.owner?.id ?? c.owner_id ?? 'unknown'
+          const name = (c.owner as { display_name?: string | null } | null)?.display_name ?? 'Inconnu'
+          if (!cardOwnerMap.has(id)) cardOwnerMap.set(id, { name, items: [] })
+          cardOwnerMap.get(id)!.items.push(c)
+        })
+        const cardEntries = [...cardOwnerMap.entries()].sort(([id]) => id === profile?.id ? -1 : 1)
 
         return (
           <section>
@@ -166,9 +150,41 @@ export default function DashboardPage() {
               <Link href="/credit-cards" className="text-xs text-[#e879f9]">Détails</Link>
             </div>
             <div className="space-y-3">
-              <CardGroup items={myCards} label="Mes cartes" />
-              <CardGroup items={partnerCards} label={`Cartes de ${partnerFirstName}`} />
-              <CardGroup items={sharedCards} label="Cartes communes" />
+              {cardEntries.map(([ownerId, group]) => {
+                const groupDebt = group.items.reduce((s, c) => s + Math.max(0, c.current_balance), 0)
+                if (groupDebt === 0) return null
+                return (
+                  <div key={ownerId}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[11px] text-[#71717a] uppercase tracking-wider">
+                        {ownerId === profile?.id ? 'Mes cartes' : `Cartes de ${group.name.split(' ')[0]}`}
+                      </p>
+                      <span className="text-[11px] font-semibold text-[#ef4444]">{formatCurrency(groupDebt)}</span>
+                    </div>
+                    <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                      {group.items.filter(c => c.current_balance > 0).map((c, i, arr) => (
+                        <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                          <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
+                          <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {sharedCards.filter(c => c.current_balance > 0).length > 0 && (
+                <div>
+                  <p className="text-[11px] text-[#71717a] uppercase tracking-wider mb-1">Cartes communes</p>
+                  <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                    {sharedCards.filter(c => c.current_balance > 0).map((c, i, arr) => (
+                      <div key={c.id} className={`flex items-center justify-between px-3 py-2.5 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                        <span className="text-[11px] text-[#d4d4d8] truncate">{c.name}{c.last_four ? ` ••${c.last_four}` : ''}</span>
+                        <span className="text-[11px] font-semibold text-[#ef4444] flex-shrink-0 ml-2">{formatCurrency(c.current_balance)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="px-3 py-2.5 mt-2 flex justify-between items-center bg-[#ef4444]/5 rounded-2xl border border-[#ef4444]/20">
               <span className="text-xs text-[#a1a1aa]">Total dû (couple)</span>

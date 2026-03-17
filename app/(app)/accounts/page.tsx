@@ -25,11 +25,18 @@ export default function AccountsPage() {
 
   const btnStyle = { background: 'linear-gradient(135deg, #e879f9, #818cf8)' }
   const allAccounts = accounts || []
-  // owner_id null = créé sans assignation → appartient à l'utilisateur courant
-  const myAccounts      = allAccounts.filter(a => !a.is_shared && (a.owner_id === meId || a.owner_id === null))
-  const partnerAccounts = allAccounts.filter(a => !a.is_shared && a.owner_id !== null && a.owner_id !== meId)
-  const sharedAccounts  = allAccounts.filter(a => a.is_shared)
-  const partnerName     = partnerAccounts[0]?.owner?.display_name || 'Partenaire'
+  const sharedAccounts = allAccounts.filter(a => a.is_shared)
+
+  // Grouper les comptes non-partagés par propriétaire (owner.id)
+  const ownerGroups = new Map<string, { name: string; accounts: BankAccount[] }>()
+  allAccounts.filter(a => !a.is_shared).forEach(a => {
+    const ownerId = a.owner?.id ?? a.owner_id ?? 'unknown'
+    const ownerName = a.owner?.display_name ?? 'Inconnu'
+    if (!ownerGroups.has(ownerId)) ownerGroups.set(ownerId, { name: ownerName, accounts: [] })
+    ownerGroups.get(ownerId)!.accounts.push(a)
+  })
+  // Mettre mon groupe en premier
+  const ownerEntries = [...ownerGroups.entries()].sort(([id]) => id === meId ? -1 : 1)
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -131,9 +138,14 @@ export default function AccountsPage() {
             <EmptyState icon="🏦" title="Aucun compte" description="Ajoutez RBC, Desjardins, etc." />
           ) : (
             <div className="space-y-5">
-              <AccountSection title="Mes comptes" items={myAccounts} />
-              <AccountSection title={`Comptes de ${partnerName}`} items={partnerAccounts} showOwner />
-              <AccountSection title="Comptes communs" items={sharedAccounts} />
+              {ownerEntries.map(([ownerId, group]) => (
+                <AccountSection
+                  key={ownerId}
+                  title={ownerId === meId ? 'Mes comptes' : `Comptes de ${group.name}`}
+                  items={group.accounts}
+                />
+              ))}
+              <AccountSection title="Comptes communs 💑" items={sharedAccounts} />
             </div>
           )}
         </div>
