@@ -30,12 +30,13 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { display_name, avatar_color, avatar_url } = body
+  const { display_name, avatar_color, avatar_url, birthday } = body
 
   const updates: Record<string, unknown> = { id: user.id, email: user.email }
   if (display_name !== undefined) updates.display_name = display_name
   if (avatar_color  !== undefined) updates.avatar_color  = avatar_color
   if (avatar_url    !== undefined) updates.avatar_url    = avatar_url
+  if (birthday      !== undefined) updates.birthday      = birthday
 
   // UPDATE uniquement (le profil est toujours créé par le trigger à l'inscription)
   const { data, error } = await supabase

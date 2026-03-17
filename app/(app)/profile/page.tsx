@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [displayName, setDisplayName] = useState('')
   const [avatarColor, setAvatarColor] = useState('#6366f1')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [birthday, setBirthday] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -28,6 +29,7 @@ export default function ProfilePage() {
       setDisplayName(p.display_name || '')
       setAvatarColor(p.avatar_color || '#6366f1')
       setAvatarUrl(p.avatar_url || null)
+      setBirthday(p.birthday ? p.birthday.split('T')[0] : '')
     }).catch(() => {})
   }, [])
 
@@ -83,7 +85,7 @@ export default function ProfilePage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const updated = await updateProfile({ display_name: displayName, avatar_color: avatarColor })
+    const updated = await updateProfile({ display_name: displayName, avatar_color: avatarColor, birthday: birthday || undefined })
     setProfile(updated)
     setSaving(false)
     setSaved(true)
@@ -162,6 +164,16 @@ export default function ProfilePage() {
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
               placeholder="Votre prénom et nom"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-[#a1a1aa] mb-1 block">Date d&apos;anniversaire</label>
+            <input
+              type="date"
+              value={birthday}
+              onChange={e => setBirthday(e.target.value)}
+              className="w-full px-4 py-3 bg-[#27272a] rounded-xl text-sm text-[#fafafa] border border-[#3f3f46] focus:outline-none focus:border-[#e879f9]"
             />
           </div>
 

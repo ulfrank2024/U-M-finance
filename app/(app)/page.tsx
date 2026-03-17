@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const { data: bankAccounts } = useFetch<BankAccount[]>('/api/bank-accounts')
   const { data: creditCards } = useFetch<CreditCardType[]>('/api/credit-cards')
   const { data: profile } = useFetch<Profile>('/api/profile')
+  const { data: allProfiles } = useFetch<Profile[]>('/api/profiles')
 
   const recent = (transactions || []).slice(0, 5)
   const activeProjects = (projects || []).filter(p => p.status === 'active').slice(0, 3)
@@ -47,6 +48,53 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Anniversaires */}
+      {(() => {
+        if (!allProfiles?.length) return null
+        const myProfile = allProfiles.find(p => p.id === profile?.id)
+        const partnerProfile = allProfiles.find(p => p.id !== profile?.id)
+        if (!myProfile?.birthday && !partnerProfile?.birthday) return null
+
+        function BirthdayCard({ p, align }: { p: typeof myProfile; align: 'left' | 'right' }) {
+          if (!p) return <div />
+          const today = new Date()
+          const bday = p.birthday ? new Date(p.birthday + 'T00:00:00') : null
+          let label = ''
+          let highlight = false
+          if (bday) {
+            const next = new Date(today.getFullYear(), bday.getMonth(), bday.getDate())
+            if (next < today) next.setFullYear(today.getFullYear() + 1)
+            const diffDays = Math.round((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+            if (diffDays === 0) { label = "🎂 Aujourd'hui !"; highlight = true }
+            else if (diffDays === 1) { label = '🎉 Demain !'; highlight = true }
+            else if (diffDays <= 7) { label = `🎁 Dans ${diffDays}j`; highlight = true }
+            else label = `🎂 ${bday.toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' })}`
+          }
+          return (
+            <div className={`flex-1 flex flex-col ${align === 'right' ? 'items-end' : 'items-start'}`}>
+              <div className="flex items-center gap-1.5">
+                <Avatar displayName={p.display_name} color={p.avatar_color} avatarUrl={p.avatar_url} size="xs" />
+                <span className="text-xs font-medium text-[#fafafa] truncate max-w-[80px]">
+                  {p.display_name?.split(' ')[0] || 'Moi'}
+                </span>
+              </div>
+              {bday && (
+                <span className={`text-[11px] mt-0.5 ${highlight ? 'text-[#e879f9] font-semibold' : 'text-[#71717a]'}`}>
+                  {label}
+                </span>
+              )}
+            </div>
+          )
+        }
+
+        return (
+          <div className="flex items-start justify-between px-1">
+            <BirthdayCard p={myProfile} align="left" />
+            <BirthdayCard p={partnerProfile} align="right" />
+          </div>
+        )
+      })()}
 
       {/* Balance */}
       {bLoading ? (

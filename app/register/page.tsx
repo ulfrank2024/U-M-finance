@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 export default function RegisterPage() {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', birthday: '' })
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -55,7 +55,7 @@ export default function RegisterPage() {
       await fetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ display_name: form.name, avatar_url: avatarUrl }),
+        body: JSON.stringify({ display_name: form.name, avatar_url: avatarUrl, birthday: form.birthday || undefined }),
       })
       window.location.href = '/'
       return
@@ -119,6 +119,15 @@ export default function RegisterPage() {
             <div>
               <label className="text-xs text-[#a1a1aa] mb-1 block">Prénom Nom</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ulrich Lontsi" required />
+            </div>
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Date d&apos;anniversaire</label>
+              <input
+                type="date"
+                value={form.birthday}
+                onChange={e => setForm({ ...form, birthday: e.target.value })}
+                className="w-full px-4 py-3 bg-[#27272a] rounded-xl text-sm text-[#fafafa] border border-[#3f3f46] focus:outline-none focus:border-[#e879f9]"
+              />
             </div>
             <div>
               <label className="text-xs text-[#a1a1aa] mb-1 block">Email</label>

@@ -199,3 +199,36 @@ $$;
 -- ============================================================
 ALTER TABLE categories
   ADD COLUMN IF NOT EXISTS is_fixed BOOLEAN DEFAULT false;
+
+-- ============================================================
+-- Migration 009 — Budget, récurrentes, reçus, ordre catégories
+-- ============================================================
+
+-- Budget mensuel par catégorie
+CREATE TABLE IF NOT EXISTS budgets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  monthly_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(category_id)
+);
+ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS "budgets_all" ON budgets FOR ALL USING (true);
+
+-- Transactions récurrentes
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT false;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS recurring_day INT;
+
+-- Photo de reçu
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+
+-- Ordre d'affichage des catégories
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
+
+-- ============================================================
+-- Migration 010 — Date d'anniversaire sur les profils
+-- ============================================================
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS birthday DATE;

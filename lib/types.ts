@@ -5,6 +5,7 @@ export interface Profile {
   avatar_color: string
   avatar_url: string | null
   created_at: string
+  birthday?: string | null
 }
 
 export interface Category {

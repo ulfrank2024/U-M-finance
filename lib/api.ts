@@ -81,7 +81,7 @@ export const deleteBankAccount = (id: string) =>
 
 // Profile
 export const fetchProfile = () => req<Profile>('/api/profile')
-export const updateProfile = (body: { display_name?: string; avatar_color?: string }) =>
+export const updateProfile = (body: { display_name?: string; avatar_color?: string; birthday?: string }) =>
   req<Profile>('/api/profile', { method: 'PUT', body: JSON.stringify(body) })
 
 // Report
