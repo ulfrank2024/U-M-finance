@@ -217,6 +217,8 @@ export interface ReportData {
   income: number
   fixed_expenses: number
   variable_expenses: number
+  card_payments_total: number
+  payments_detail: { name: string; last_four: string | null; total: number }[]
   savings: number
   savings_rate: number
   card_debt: number
@@ -229,6 +231,7 @@ export interface ReportData {
     income: number
     fixed_expenses: number
     variable_expenses: number
+    card_payments_total: number
     savings: number
   }
 }

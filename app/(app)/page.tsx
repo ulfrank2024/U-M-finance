@@ -1,8 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Wallet, CreditCard, ChevronDown, ChevronRight } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
+import { createClient } from '@/lib/supabase/client'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
@@ -17,13 +18,31 @@ export default function DashboardPage() {
   const [cardsOpen, setCardsOpen] = useState(false)
   const [transactionsOpen, setTransactionsOpen] = useState(true)
 
-  const { data: balance, loading: bLoading } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
-  const { data: transactions } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
+  const { data: balance, loading: bLoading, refetch: refetchBalance } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
+  const { data: transactions, refetch: refetchTxs } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
   const { data: projects } = useFetch<Project[]>('/api/projects')
-  const { data: bankAccounts } = useFetch<BankAccount[]>('/api/bank-accounts')
-  const { data: creditCards } = useFetch<CreditCardType[]>('/api/credit-cards')
+  const { data: bankAccounts, refetch: refetchAccounts } = useFetch<BankAccount[]>('/api/bank-accounts')
+  const { data: creditCards, refetch: refetchCards } = useFetch<CreditCardType[]>('/api/credit-cards')
   const { data: profile } = useFetch<Profile>('/api/profile')
   const { data: allProfiles } = useFetch<Profile[]>('/api/profiles')
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'credit_card_payments' }, () => {
+        refetchCards()
+        refetchAccounts()
+        refetchBalance()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        refetchTxs()
+        refetchAccounts()
+        refetchBalance()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [refetchCards, refetchAccounts, refetchBalance, refetchTxs])
 
   const recent = (transactions || []).slice(0, 5)
   const activeProjects = (projects || []).filter(p => p.status === 'active').slice(0, 3)

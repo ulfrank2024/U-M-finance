@@ -68,6 +68,13 @@ export default function ReportPage() {
                 <p className="text-lg font-bold text-[#ef4444]">{formatCurrency(data.variable_expenses)}</p>
                 {data.prev_month && <Delta current={data.variable_expenses} prev={data.prev_month.variable_expenses} />}
               </div>
+              {data.card_payments_total > 0 && (
+                <div>
+                  <p className="text-[11px] text-[#a1a1aa]">Remb. cartes</p>
+                  <p className="text-lg font-bold text-[#f97316]">{formatCurrency(data.card_payments_total)}</p>
+                  {data.prev_month && <Delta current={data.card_payments_total} prev={data.prev_month.card_payments_total ?? 0} />}
+                </div>
+              )}
               <div>
                 <p className="text-[11px] text-[#a1a1aa]">Épargne</p>
                 <p className={`text-lg font-bold ${data.savings >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
@@ -227,6 +234,32 @@ export default function ReportPage() {
                   )
                 })}
               </div>
+            </section>
+          )}
+
+          {/* Remboursements cartes de crédit ce mois */}
+          {data.card_payments_total > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold text-[#fafafa]">💳 Remboursements CC ce mois</h2>
+                <span className="text-sm font-bold text-[#f97316]">{formatCurrency(data.card_payments_total)}</span>
+              </div>
+              <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+                {data.payments_detail.map((p, i) => (
+                  <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < data.payments_detail.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 bg-[#f97316]/15">
+                      💳
+                    </div>
+                    <span className="flex-1 text-sm text-[#d4d4d8] truncate">
+                      {p.name}{p.last_four ? ` ••${p.last_four}` : ''}
+                    </span>
+                    <span className="text-sm font-semibold text-[#f97316] flex-shrink-0">{formatCurrency(p.total)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-[#71717a] mt-1.5 px-1">
+                Sorties réelles du compte bancaire ce mois-ci
+              </p>
             </section>
           )}
 

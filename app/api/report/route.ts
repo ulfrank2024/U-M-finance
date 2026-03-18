@@ -86,6 +86,25 @@ export async function GET(request: NextRequest) {
 
   const fixed_expenses = fixed_breakdown.reduce((s, c) => s + c.amount, 0)
   const variable_expenses = variable_breakdown.reduce((s, c) => s + c.amount, 0)
+
+  // Paiements de carte de crédit effectués CE mois-ci
+  const { data: monthPayments } = await admin
+    .from('credit_card_payments')
+    .select('amount, credit_card_id, credit_cards(id, name, last_four)')
+    .gte('payment_date', start)
+    .lte('payment_date', end)
+
+  const paymentsByCard = new Map<string, { name: string; last_four: string | null; total: number }>()
+  for (const p of (monthPayments || [])) {
+    const card = p.credit_cards as { id: string; name: string; last_four: string | null } | null
+    const key = card?.id || p.credit_card_id
+    const label = card?.name || 'Carte'
+    if (!paymentsByCard.has(key)) paymentsByCard.set(key, { name: label, last_four: card?.last_four ?? null, total: 0 })
+    paymentsByCard.get(key)!.total += Number(p.amount)
+  }
+  const payments_detail = [...paymentsByCard.values()]
+  const card_payments_total = payments_detail.reduce((s, p) => s + p.total, 0)
+
   const savings = income - fixed_expenses - variable_expenses
   const savings_rate = income > 0 ? Math.round((savings / income) * 100) : 0
 
@@ -169,8 +188,14 @@ export async function GET(request: NextRequest) {
       }
     }
   }
+  const { data: prevPayments } = await admin
+    .from('credit_card_payments')
+    .select('amount')
+    .gte('payment_date', prevStart)
+    .lte('payment_date', prevEnd)
+  const prev_card_payments = (prevPayments || []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0)
   const prev_savings = prev_income - prev_fixed - prev_variable
-  const prev_month = { income: prev_income, fixed_expenses: prev_fixed, variable_expenses: prev_variable, savings: prev_savings }
+  const prev_month = { income: prev_income, fixed_expenses: prev_fixed, variable_expenses: prev_variable, card_payments_total: prev_card_payments, savings: prev_savings }
 
   // 5. Tendance 6 derniers mois
   const trend: { month: string; income: number; expenses: number }[] = []
@@ -192,7 +217,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    month, income, fixed_expenses, variable_expenses, savings, savings_rate,
+    month, income, fixed_expenses, variable_expenses, card_payments_total, payments_detail,
+    savings, savings_rate,
     card_debt, cards_detail, fixed_breakdown, variable_breakdown, trend, income_transactions,
     prev_month,
   })
