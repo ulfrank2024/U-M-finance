@@ -132,8 +132,10 @@ export default function ShoppingDetailPage({ params }: { params: Promise<{ id: s
 
   const handleCreateExpense = () => {
     if (!list) return
-    const params = new URLSearchParams({ description: list.name })
-    router.push(`/transactions/new?${params.toString()}`)
+    const p = new URLSearchParams({ description: list.name })
+    if (list.category_id) p.set('category_id', list.category_id)
+    if (list.planned_date) p.set('date', list.planned_date)
+    router.push(`/transactions/new?${p.toString()}`)
   }
 
   if (loading || !list) {

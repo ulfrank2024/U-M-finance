@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { createTransaction, fetchCategories, fetchSharedGroups, fetchCreditCards, fetchBankAccounts, addCardPayment } from '@/lib/api'
 import { createClient } from '@/lib/supabase/client'
@@ -19,18 +19,27 @@ const CURRENCIES = [
   { value: 'NGN', label: 'Naira',      subtitle: 'Nigeria · NGN',  icon: '🇳🇬' },
 ]
 
-export default function NewTransactionPage() {
+export default function NewTransactionPageWrapper() {
+  return (
+    <Suspense>
+      <NewTransactionPage />
+    </Suspense>
+  )
+}
+
+function NewTransactionPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [type, setType] = useState<TxType>('expense')
   const [scope, setScope] = useState<TxScope>('personal')
   const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [description, setDescription] = useState(() => searchParams.get('description') || '')
+  const [categoryId, setCategoryId] = useState(() => searchParams.get('category_id') || '')
   const [sharedGroupId, setSharedGroupId] = useState('')
   const [creditCardId, setCreditCardId] = useState('')
   const [bankAccountId, setBankAccountId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'debit' | 'credit'>('cash')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(() => searchParams.get('date') || new Date().toISOString().split('T')[0])
   const [isTransfer, setIsTransfer] = useState(false)
   const [foreignCurrency, setForeignCurrency] = useState('XAF')
   const [exchangeRate, setExchangeRate] = useState('')
