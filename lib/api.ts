@@ -1,6 +1,7 @@
 import type {
   BankAccount, BalanceResponse, Budget, Category, CreditCard, CreditCardPayment,
-  Profile, Project, ProjectContribution, ReportData, SharedGroup, Transaction
+  Profile, Project, ProjectContribution, ReportData, SharedGroup, Transaction,
+  ShoppingList, ShoppingItem
 } from './types'
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -95,3 +96,19 @@ export const updateBudget = (id: string, body: { monthly_amount: number }) =>
   req<Budget>(`/api/budgets/${id}`, { method: 'PUT', body: JSON.stringify(body) })
 export const deleteBudget = (id: string) =>
   req<{ success: boolean }>(`/api/budgets/${id}`, { method: 'DELETE' })
+
+// Shopping Lists
+export const fetchShoppingLists = () => req<ShoppingList[]>('/api/shopping-lists')
+export const createShoppingList = (data: { name: string; store_name?: string; category_id?: string | null; planned_date?: string | null }) =>
+  req<ShoppingList>('/api/shopping-lists', { method: 'POST', body: JSON.stringify(data) })
+export const fetchShoppingList = (id: string) => req<ShoppingList>(`/api/shopping-lists/${id}`)
+export const updateShoppingList = (id: string, data: Partial<Pick<ShoppingList, 'name' | 'store_name' | 'category_id' | 'planned_date' | 'status'>>) =>
+  req<ShoppingList>(`/api/shopping-lists/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteShoppingList = (id: string) =>
+  req<void>(`/api/shopping-lists/${id}`, { method: 'DELETE' })
+export const addShoppingItem = (listId: string, data: { name: string; quantity?: string; estimated_price?: number | null }) =>
+  req<ShoppingItem>(`/api/shopping-lists/${listId}/items`, { method: 'POST', body: JSON.stringify(data) })
+export const updateShoppingItem = (listId: string, itemId: string, data: { name?: string; quantity?: string | null; estimated_price?: number | null; actual_price?: number | null; is_checked?: boolean }) =>
+  req<ShoppingItem>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteShoppingItem = (listId: string, itemId: string) =>
+  req<void>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'DELETE' })

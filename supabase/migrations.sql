@@ -228,7 +228,44 @@ ALTER TABLE transactions ADD COLUMN IF NOT EXISTS receipt_url TEXT;
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 
 -- ============================================================
--- Migration 010 — Date d'anniversaire sur les profils
+-- Migration 011: Liste de courses (shopping lists + items)
 -- ============================================================
-ALTER TABLE profiles
-  ADD COLUMN IF NOT EXISTS birthday DATE;
+CREATE TABLE IF NOT EXISTS shopping_lists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'shopping', 'done')),
+  store_name TEXT,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  planned_date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS shopping_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  list_id UUID NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  quantity TEXT,
+  estimated_price DECIMAL(10,2),
+  actual_price DECIMAL(10,2),
+  is_checked BOOLEAN DEFAULT FALSE,
+  checked_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  checked_at TIMESTAMPTZ,
+  added_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shopping_items ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "shopping_lists_policy" ON shopping_lists;
+CREATE POLICY "shopping_lists_policy" ON shopping_lists FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "shopping_items_policy" ON shopping_items;
+CREATE POLICY "shopping_items_policy" ON shopping_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE TRIGGER set_shopping_lists_updated_at
+  BEFORE UPDATE ON shopping_lists FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+

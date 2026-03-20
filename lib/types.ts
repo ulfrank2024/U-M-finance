@@ -235,3 +235,34 @@ export interface ReportData {
     savings: number
   }
 }
+
+export interface ShoppingItem {
+  id: string
+  list_id: string
+  name: string
+  quantity: string | null
+  estimated_price: number | null
+  actual_price: number | null
+  is_checked: boolean
+  checked_by: string | null
+  checked_at: string | null
+  added_by: string | null
+  added_by_profile?: { id: string; display_name: string | null; avatar_color: string | null } | null
+  created_at: string
+}
+
+export interface ShoppingList {
+  id: string
+  name: string
+  status: 'open' | 'shopping' | 'done'
+  store_name: string | null
+  category_id: string | null
+  categories?: { id: string; name: string; icon: string; color: string } | null
+  created_by: string | null
+  planned_date: string | null
+  created_at: string
+  updated_at: string
+  items?: ShoppingItem[]
+  items_count?: number
+  checked_count?: number
+}
