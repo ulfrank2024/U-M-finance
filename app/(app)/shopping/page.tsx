@@ -38,10 +38,13 @@ export default function ShoppingPage() {
   const { data: categories } = useFetch<Category[]>('/api/categories')
 
   const [showAdd, setShowAdd] = useState(false)
+  const [showCatPicker, setShowCatPicker] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState({ name: '', store_name: '', planned_date: '', category_id: '' })
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+
+  const selectedCat = (categories || []).find(c => c.id === form.category_id)
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -198,18 +201,24 @@ export default function ShoppingPage() {
                   />
                 </div>
               </div>
-              {categories && categories.length > 0 && (
-                <select
-                  value={form.category_id}
-                  onChange={e => setForm({ ...form, category_id: e.target.value })}
-                  className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-sm focus:outline-none focus:border-[#e879f9] text-[#fafafa]"
-                >
-                  <option value="">Catégorie (optionnel)</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
-                  ))}
-                </select>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowCatPicker(true)}
+                className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-sm text-left flex items-center gap-2"
+              >
+                {selectedCat ? (
+                  <>
+                    <span className="text-base">{selectedCat.icon}</span>
+                    <span className="text-[#fafafa] flex-1">{selectedCat.name}</span>
+                    <span
+                      className="text-[#71717a] text-xs"
+                      onClick={e => { e.stopPropagation(); setForm({ ...form, category_id: '' }) }}
+                    >✕</span>
+                  </>
+                ) : (
+                  <span className="text-[#71717a]">Catégorie (optionnel)</span>
+                )}
+              </button>
               {formError && (
                 <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{formError}</p>
               )}
@@ -222,6 +231,48 @@ export default function ShoppingPage() {
                 {formLoading ? 'Création...' : 'Créer la liste'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Category Picker Modal */}
+      {showCatPicker && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end bg-black/60"
+          onClick={() => setShowCatPicker(false)}
+        >
+          <div
+            className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl border-t border-[#3f3f46] pb-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
+              <h3 className="text-base font-bold text-[#fafafa]">Choisir une catégorie</h3>
+              <button onClick={() => setShowCatPicker(false)} className="text-[#71717a] text-lg leading-none">✕</button>
+            </div>
+            {/* Aucune catégorie */}
+            <button
+              className="w-full flex items-center gap-3 px-6 py-3 border-b border-[#27272a] active:bg-[#27272a]"
+              onClick={() => { setForm({ ...form, category_id: '' }); setShowCatPicker(false) }}
+            >
+              <span className="w-9 h-9 rounded-xl bg-[#27272a] flex items-center justify-center text-lg">—</span>
+              <span className={`text-sm ${!form.category_id ? 'text-[#e879f9] font-semibold' : 'text-[#a1a1aa]'}`}>Aucune catégorie</span>
+              {!form.category_id && <span className="ml-auto text-[#e879f9]">✓</span>}
+            </button>
+            <div className="overflow-y-auto max-h-72">
+              {(categories || []).map(c => (
+                <button
+                  key={c.id}
+                  className="w-full flex items-center gap-3 px-6 py-3 border-b border-[#27272a] last:border-0 active:bg-[#27272a]"
+                  onClick={() => { setForm({ ...form, category_id: c.id }); setShowCatPicker(false) }}
+                >
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ backgroundColor: `${c.color}25` }}
+                  >{c.icon}</span>
+                  <span className={`text-sm flex-1 text-left ${form.category_id === c.id ? 'text-[#e879f9] font-semibold' : 'text-[#fafafa]'}`}>{c.name}</span>
+                  {form.category_id === c.id && <span className="text-[#e879f9]">✓</span>}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
