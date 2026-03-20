@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, ShoppingCart, CalendarDays, Store } from 'lucide-react'
+import { Plus, Trash2, ShoppingCart, CalendarDays } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
 import {
   createShoppingList,
@@ -41,7 +41,7 @@ export default function ShoppingPage() {
   const [showCatPicker, setShowCatPicker] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState('')
-  const [form, setForm] = useState({ name: '', store_name: '', planned_date: '', category_id: '' })
+  const [form, setForm] = useState({ name: '', planned_date: '', category_id: '' })
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
 
   const selectedCat = (categories || []).find(c => c.id === form.category_id)
@@ -53,12 +53,11 @@ export default function ShoppingPage() {
     try {
       await createShoppingList({
         name: form.name,
-        store_name: form.store_name || undefined,
         category_id: form.category_id || null,
         planned_date: form.planned_date || null,
       })
       setShowAdd(false)
-      setForm({ name: '', store_name: '', planned_date: '', category_id: '' })
+      setForm({ name: '', planned_date: '', category_id: '' })
       refetch()
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Erreur lors de la création')
@@ -180,15 +179,6 @@ export default function ShoppingPage() {
                 required
                 className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
               />
-              <div className="flex items-center gap-2 h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl">
-                <Store size={16} className="text-[#71717a] flex-shrink-0" />
-                <input
-                  placeholder="Magasin (optionnel)"
-                  value={form.store_name}
-                  onChange={e => setForm({ ...form, store_name: e.target.value })}
-                  className="flex-1 bg-transparent text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none"
-                />
-              </div>
               <div>
                 <label className="text-xs text-[#a1a1aa] mb-1 block">Date prévue (optionnel)</label>
                 <div className="flex items-center gap-2 h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl">
@@ -306,12 +296,6 @@ function ListCard({
             <span className="text-[#fafafa] font-semibold text-sm truncate">{list.name}</span>
             {statusBadge(list.status)}
           </div>
-          {list.store_name && (
-            <p className="text-xs text-[#71717a] mt-0.5 flex items-center gap-1">
-              <Store size={11} />
-              {list.store_name}
-            </p>
-          )}
           {list.planned_date && (
             <p className="text-xs text-[#71717a] mt-0.5 flex items-center gap-1">
               <CalendarDays size={11} />
