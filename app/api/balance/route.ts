@@ -96,6 +96,18 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Ajouter les remboursements CC du mois (sortie réelle du compte bancaire)
+  let ccQuery = admin
+    .from('credit_card_payments')
+    .select('user_id, amount')
+  if (dateFilter.start) ccQuery = ccQuery.gte('payment_date', dateFilter.start)
+  if (dateFilter.end)   ccQuery = ccQuery.lte('payment_date', dateFilter.end)
+  const { data: ccPayments } = await ccQuery
+  for (const p of (ccPayments || [])) {
+    if (!totals[p.user_id]) continue
+    totals[p.user_id].personal_expenses += Number(p.amount)
+  }
+
   const summary = (profiles || []).map((p: { id: string; display_name: string; email: string; avatar_color: string; avatar_url: string | null }) => {
     const t = totals[p.id] || { income: 0, personal_expenses: 0, common_expenses: 0, shared_expenses: 0 }
     const total_expenses = t.personal_expenses + t.common_expenses + t.shared_expenses
