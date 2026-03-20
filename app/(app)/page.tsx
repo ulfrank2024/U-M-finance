@@ -294,17 +294,23 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Lien rapport */}
-      <Link href="/report" className="flex items-center justify-between p-4 bg-[#18181b] rounded-2xl border border-[#3f3f46]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#818cf8]/15 flex items-center justify-center text-xl">📊</div>
-          <div>
-            <p className="text-sm font-medium text-[#fafafa]">Rapport mensuel</p>
-            <p className="text-xs text-[#a1a1aa]">Charges fixes, variables, tendances</p>
+      {/* Raccourcis rapides */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/report" className="flex items-center justify-between p-4 bg-[#18181b] rounded-2xl border border-[#3f3f46]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#818cf8]/15 flex items-center justify-center text-lg">📊</div>
+            <p className="text-sm font-medium text-[#fafafa]">Rapport</p>
           </div>
-        </div>
-        <span className="text-[#a1a1aa] text-lg">›</span>
-      </Link>
+          <span className="text-[#a1a1aa]">›</span>
+        </Link>
+        <Link href="/categories" className="flex items-center justify-between p-4 bg-[#18181b] rounded-2xl border border-[#3f3f46]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#e879f9]/15 flex items-center justify-center text-lg">🏷️</div>
+            <p className="text-sm font-medium text-[#fafafa]">Catégories</p>
+          </div>
+          <span className="text-[#a1a1aa]">›</span>
+        </Link>
+      </div>
 
       {/* Dernières transactions */}
       <section>
