@@ -660,28 +660,46 @@ function ParentView({
             </button>
           )}
           {list.status === 'shopping' && (
-            allSubsDone ? (
+            <div className="flex gap-2">
+              {allSubsDone ? (
+                <button
+                  onClick={() => handleStatusChange('done')}
+                  disabled={statusLoading}
+                  className="flex-1 h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60 bg-emerald-600"
+                >
+                  {statusLoading ? '...' : '✅ Terminer'}
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="flex-1 h-10 rounded-xl text-[#71717a] text-sm font-semibold bg-[#27272a] border border-[#3f3f46] cursor-not-allowed"
+                >
+                  {subLists.length === 0 ? '✅ Terminer' : `${doneSubs}/${subLists.length} sous-courses terminées`}
+                </button>
+              )}
               <button
-                onClick={() => handleStatusChange('done')}
+                onClick={() => handleStatusChange('open')}
                 disabled={statusLoading}
-                className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60 bg-emerald-600"
+                className="h-10 px-3 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-xs flex-shrink-0 disabled:opacity-50"
+                title="Retour à Ouvert"
               >
-                {statusLoading ? '...' : '✅ Terminer'}
+                ↩ Ouvrir
               </button>
-            ) : (
-              <button
-                disabled
-                className="w-full h-10 rounded-xl text-[#71717a] text-sm font-semibold disabled:opacity-60 bg-[#27272a] border border-[#3f3f46] cursor-not-allowed"
-              >
-                {subLists.length === 0
-                  ? '✅ Terminer'
-                  : `${doneSubs}/${subLists.length} sous-courses terminées`}
-              </button>
-            )
+            </div>
           )}
           {list.status === 'done' && (
-            <div className="w-full h-10 rounded-xl flex items-center justify-center bg-emerald-600/15 border border-emerald-600/30">
-              <span className="text-emerald-400 text-sm font-semibold">✅ Course terminée</span>
+            <div className="flex gap-2">
+              <div className="flex-1 h-10 rounded-xl flex items-center justify-center bg-emerald-600/15 border border-emerald-600/30">
+                <span className="text-emerald-400 text-sm font-semibold">✅ Course terminée</span>
+              </div>
+              <button
+                onClick={() => handleStatusChange('shopping')}
+                disabled={statusLoading}
+                className="h-10 px-3 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-xs flex-shrink-0 disabled:opacity-50"
+                title="Rouvrir la course"
+              >
+                ↩ Rouvrir
+              </button>
             </div>
           )}
         </div>
@@ -960,23 +978,24 @@ function SubListView({
                 {statusLoading ? '...' : '🛒 Commencer'}
               </button>
             )}
-            {list.status === 'shopping' && allChecked && (
-              <button
-                onClick={() => handleStatusChange('done')}
-                disabled={statusLoading}
-                className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60 bg-emerald-600"
-              >
-                {statusLoading ? '...' : '✅ Sous-course terminée'}
-              </button>
-            )}
-            {list.status === 'shopping' && !allChecked && (
-              <button
-                onClick={() => handleStatusChange('done')}
-                disabled={statusLoading}
-                className="w-full h-10 rounded-xl text-sm font-semibold disabled:opacity-60 border border-[#3f3f46] text-[#a1a1aa]"
-              >
-                {statusLoading ? '...' : '✅ Terminer quand même'}
-              </button>
+            {list.status === 'shopping' && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleStatusChange('done')}
+                  disabled={statusLoading}
+                  className={`flex-1 h-10 rounded-xl text-sm font-semibold disabled:opacity-60 ${allChecked ? 'text-white bg-emerald-600' : 'border border-[#3f3f46] text-[#a1a1aa]'}`}
+                >
+                  {statusLoading ? '...' : allChecked ? '✅ Terminer' : '✅ Terminer quand même'}
+                </button>
+                <button
+                  onClick={() => handleStatusChange('open')}
+                  disabled={statusLoading}
+                  className="h-10 px-3 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-xs flex-shrink-0 disabled:opacity-50"
+                  title="Retour à Ouvert"
+                >
+                  ↩ Ouvrir
+                </button>
+              </div>
             )}
             {list.status === 'done' && (
               <div className="flex gap-2">
