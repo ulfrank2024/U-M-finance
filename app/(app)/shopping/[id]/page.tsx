@@ -927,47 +927,49 @@ function SubListView({
           </button>
         </div>
 
-        {/* Status action bar */}
-        <div className="mt-3">
-          {list.status === 'open' && (
-            <button
-              onClick={() => handleStatusChange('shopping')}
-              disabled={statusLoading}
-              className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
-              style={btnStyle}
-            >
-              {statusLoading ? '...' : '🛒 Commencer'}
-            </button>
-          )}
-          {list.status === 'shopping' && allChecked && (
-            <button
-              onClick={() => handleStatusChange('done')}
-              disabled={statusLoading}
-              className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60 bg-emerald-600"
-            >
-              {statusLoading ? '...' : '✅ Sous-course terminée'}
-            </button>
-          )}
-          {list.status === 'shopping' && !allChecked && (
-            <button
-              onClick={() => handleStatusChange('done')}
-              disabled={statusLoading}
-              className="w-full h-10 rounded-xl text-sm font-semibold disabled:opacity-60 border border-[#3f3f46] text-[#a1a1aa]"
-            >
-              {statusLoading ? '...' : '✅ Terminer quand même'}
-            </button>
-          )}
-          {list.status === 'done' && (
-            <div className="w-full h-10 rounded-xl flex items-center justify-center gap-2 bg-emerald-600/15 border border-emerald-600/30">
-              <span className="text-emerald-400 text-sm font-semibold">✅ Terminée</span>
-            </div>
-          )}
-        </div>
+        {/* Status action bar — uniquement pour les sous-listes (dans une course) */}
+        {!backHref && (
+          <div className="mt-3">
+            {list.status === 'open' && (
+              <button
+                onClick={() => handleStatusChange('shopping')}
+                disabled={statusLoading}
+                className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
+                style={btnStyle}
+              >
+                {statusLoading ? '...' : '🛒 Commencer'}
+              </button>
+            )}
+            {list.status === 'shopping' && allChecked && (
+              <button
+                onClick={() => handleStatusChange('done')}
+                disabled={statusLoading}
+                className="w-full h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-60 bg-emerald-600"
+              >
+                {statusLoading ? '...' : '✅ Sous-course terminée'}
+              </button>
+            )}
+            {list.status === 'shopping' && !allChecked && (
+              <button
+                onClick={() => handleStatusChange('done')}
+                disabled={statusLoading}
+                className="w-full h-10 rounded-xl text-sm font-semibold disabled:opacity-60 border border-[#3f3f46] text-[#a1a1aa]"
+              >
+                {statusLoading ? '...' : '✅ Terminer quand même'}
+              </button>
+            )}
+            {list.status === 'done' && (
+              <div className="w-full h-10 rounded-xl flex items-center justify-center gap-2 bg-emerald-600/15 border border-emerald-600/30">
+                <span className="text-emerald-400 text-sm font-semibold">✅ Terminée</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-4 pt-4">
-        {/* All done banner */}
-        {showAllDoneBanner && (
+        {/* All done banner — uniquement dans une course */}
+        {!backHref && showAllDoneBanner && (
           <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
             <p className="text-emerald-400 text-sm font-medium flex-1">
               ✅ Tous les articles cochés ! Marquer comme terminée ?
@@ -1085,14 +1087,16 @@ function SubListView({
           </div>
         )}
 
-        {/* Duplicate button */}
-        <button
-          onClick={handleOpenDuplicatePicker}
-          className="mt-2 w-full h-11 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#818cf8] hover:text-[#818cf8] transition-colors"
-        >
-          <Plus size={15} />
-          Dupliquer vers une autre course
-        </button>
+        {/* Duplicate button — uniquement dans une course */}
+        {!backHref && (
+          <button
+            onClick={handleOpenDuplicatePicker}
+            className="mt-2 w-full h-11 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#818cf8] hover:text-[#818cf8] transition-colors"
+          >
+            <Plus size={15} />
+            Dupliquer vers une autre course
+          </button>
+        )}
       </div>
 
       {/* Edit modal */}
