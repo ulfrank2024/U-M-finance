@@ -216,9 +216,10 @@ interface ItemRowProps {
   onSaveEdit: () => void
   onCancelEdit: () => void
   onDelete: () => void
+  hideCheck?: boolean
 }
 
-function ItemRow({ item, isEditing, editName, editQty, onEditNameChange, onEditQtyChange, onToggle, onStartEdit, onSaveEdit, onCancelEdit, onDelete }: ItemRowProps) {
+function ItemRow({ item, isEditing, editName, editQty, onEditNameChange, onEditQtyChange, onToggle, onStartEdit, onSaveEdit, onCancelEdit, onDelete, hideCheck }: ItemRowProps) {
   if (isEditing) {
     return (
       <div className="bg-[#18181b] border border-[#e879f9]/40 rounded-2xl p-3 space-y-2">
@@ -248,17 +249,19 @@ function ItemRow({ item, isEditing, editName, editQty, onEditNameChange, onEditQ
   }
 
   return (
-    <div className={`flex items-center gap-3 py-3 px-3 rounded-2xl border border-[#3f3f46] transition-colors ${item.is_checked ? 'opacity-50' : 'bg-[#18181b]'}`}>
-      <button
-        onClick={onToggle}
-        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-          item.is_checked ? 'border-[#e879f9] bg-[#e879f9]' : 'border-[#3f3f46] bg-transparent'
-        }`}
-      >
-        {item.is_checked && <Check size={13} className="text-white" strokeWidth={3} />}
-      </button>
+    <div className="flex items-center gap-3 py-3 px-3 rounded-2xl border border-[#3f3f46] bg-[#18181b] transition-colors">
+      {!hideCheck && (
+        <button
+          onClick={onToggle}
+          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+            item.is_checked ? 'border-[#e879f9] bg-[#e879f9]' : 'border-[#3f3f46] bg-transparent'
+          }`}
+        >
+          {item.is_checked && <Check size={13} className="text-white" strokeWidth={3} />}
+        </button>
+      )}
       <div className="flex-1 min-w-0">
-        <span className={`text-sm font-medium ${item.is_checked ? 'line-through text-[#71717a]' : 'text-[#fafafa]'}`}>
+        <span className="text-sm font-medium text-[#fafafa]">
           {item.name}
         </span>
         <div className="flex items-center gap-2 mt-0.5">
@@ -271,7 +274,7 @@ function ItemRow({ item, isEditing, editName, editQty, onEditNameChange, onEditQ
         </div>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0">
-        {!item.is_checked && (
+        {(!item.is_checked || hideCheck) && (
           <button onClick={onStartEdit} className="p-1.5 rounded-lg text-[#71717a]">
             <Pencil size={14} />
           </button>
@@ -991,7 +994,7 @@ function SubListView({
           </div>
         ) : (
           <div className="space-y-1 mb-4">
-            {unchecked.map(item => (
+            {(backHref ? items : unchecked).map(item => (
               <ItemRow
                 key={item.id}
                 item={item}
@@ -1005,9 +1008,10 @@ function SubListView({
                 onSaveEdit={() => saveEdit(item)}
                 onCancelEdit={() => setEditItemId(null)}
                 onDelete={() => handleDeleteItem(item.id)}
+                hideCheck={!!backHref}
               />
             ))}
-            {checked.length > 0 && (
+            {!backHref && checked.length > 0 && (
               <>
                 <p className="text-xs text-[#71717a] pt-3 pb-1 font-medium">Cochés ({checked.length})</p>
                 {checked.map(item => (
@@ -1061,8 +1065,8 @@ function SubListView({
           </form>
         </div>
 
-        {/* Summary footer */}
-        {items.length > 0 && (
+        {/* Summary footer — uniquement dans une course */}
+        {!backHref && items.length > 0 && (
           <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-4">
             <div className="flex items-center justify-between text-sm mb-3">
               <span className="text-[#a1a1aa]">{checked.length} / {items.length} article{items.length > 1 ? 's' : ''} cochés</span>
