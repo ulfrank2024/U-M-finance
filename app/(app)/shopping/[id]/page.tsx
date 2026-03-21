@@ -575,7 +575,8 @@ function ParentView({
 
   const handleDeleteSub = async () => {
     if (!pendingDelete) return
-    await deleteShoppingList(pendingDelete)
+    // Retirer de la course (parent_id = null) sans supprimer la liste
+    await updateShoppingList(pendingDelete, { parent_id: null })
     setPendingDelete(null)
     refetch()
   }
@@ -770,9 +771,9 @@ function ParentView({
       )}
       <ConfirmModal
         isOpen={!!pendingDelete}
-        title="Supprimer la sous-course"
-        message="Cette action est irréversible. La sous-course et tous ses articles seront supprimés."
-        confirmLabel="Supprimer"
+        title="Retirer de la course"
+        message="La liste sera retirée de cette course mais restera disponible dans Mes listes."
+        confirmLabel="Retirer"
         onConfirm={handleDeleteSub}
         onCancel={() => setPendingDelete(null)}
       />
