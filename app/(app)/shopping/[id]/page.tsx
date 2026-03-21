@@ -818,7 +818,9 @@ function SubListView({
   const [duplicatableLists, setDuplicatableLists] = useState<ShoppingList[]>([])
   const [duplicatePickerLoading, setDuplicatePickerLoading] = useState(false)
   const [duplicateSuccess, setDuplicateSuccess] = useState('')
-  const [expenseDeclared, setExpenseDeclared] = useState(false)
+  const [expenseDeclared, setExpenseDeclared] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem(`expense_declared_${list.id}`) === 'true'
+  )
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   const items = list.items || []
@@ -1003,6 +1005,7 @@ function SubListView({
                 <button
                   onClick={() => {
                     setExpenseDeclared(true)
+                    localStorage.setItem(`expense_declared_${list.id}`, 'true')
                     const p = new URLSearchParams({ description: list.name })
                     if (list.category_id) p.set('category_id', list.category_id)
                     if (list.planned_date) p.set('date', list.planned_date)
@@ -1015,7 +1018,7 @@ function SubListView({
                   💳 Déclarer la dépense
                 </button>
                 <button
-                  onClick={() => { setExpenseDeclared(false); handleStatusChange('shopping') }}
+                  onClick={() => { setExpenseDeclared(false); localStorage.removeItem(`expense_declared_${list.id}`); handleStatusChange('shopping') }}
                   disabled={statusLoading}
                   className="h-10 px-3 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-xs flex-shrink-0 disabled:opacity-50"
                   title="Rouvrir pour modifier"
