@@ -269,3 +269,8 @@ CREATE OR REPLACE TRIGGER set_shopping_lists_updated_at
   BEFORE UPDATE ON shopping_lists FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 
+
+
+-- Migration 012: Sous-courses (parent_id on shopping_lists)
+ALTER TABLE shopping_lists ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES shopping_lists(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_shopping_lists_parent_id ON shopping_lists(parent_id);

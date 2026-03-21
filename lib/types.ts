@@ -257,6 +257,7 @@ export interface ShoppingList {
   status: 'open' | 'shopping' | 'done'
   store_name: string | null
   category_id: string | null
+  parent_id?: string | null
   categories?: { id: string; name: string; icon: string; color: string } | null
   created_by: string | null
   planned_date: string | null
@@ -265,4 +266,5 @@ export interface ShoppingList {
   items?: ShoppingItem[]
   items_count?: number
   checked_count?: number
+  sub_lists?: ShoppingList[]
 }

@@ -99,10 +99,10 @@ export const deleteBudget = (id: string) =>
 
 // Shopping Lists
 export const fetchShoppingLists = () => req<ShoppingList[]>('/api/shopping-lists')
-export const createShoppingList = (data: { name: string; store_name?: string; category_id?: string | null; planned_date?: string | null }) =>
+export const createShoppingList = (data: { name: string; store_name?: string; category_id?: string | null; planned_date?: string | null; parent_id?: string | null }) =>
   req<ShoppingList>('/api/shopping-lists', { method: 'POST', body: JSON.stringify(data) })
 export const fetchShoppingList = (id: string) => req<ShoppingList>(`/api/shopping-lists/${id}`)
-export const updateShoppingList = (id: string, data: Partial<Pick<ShoppingList, 'name' | 'store_name' | 'category_id' | 'planned_date' | 'status'>>) =>
+export const updateShoppingList = (id: string, data: Partial<Pick<ShoppingList, 'name' | 'store_name' | 'category_id' | 'planned_date' | 'status' | 'parent_id'>>) =>
   req<ShoppingList>(`/api/shopping-lists/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteShoppingList = (id: string) =>
   req<void>(`/api/shopping-lists/${id}`, { method: 'DELETE' })
