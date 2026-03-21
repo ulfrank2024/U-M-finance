@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, use, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Pencil, Check, X, CalendarDays, Settings2, Plus } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
@@ -1229,8 +1229,9 @@ function SubListView({
 // ──────────────────────────────────────────────────────────────────────────────
 // Main page (dispatch to ParentView or SubListView)
 // ──────────────────────────────────────────────────────────────────────────────
-export default function ShoppingDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+function ShoppingDetailInner({ id }: { id: string }) {
+  const searchParams = useSearchParams()
+  const fromListe = searchParams.get('from') === 'liste'
   const { data: list, loading, refetch } = useFetch<ShoppingList>(`/api/shopping-lists/${id}`)
   const { data: categories } = useFetch<Category[]>('/api/categories')
 
@@ -1265,10 +1266,10 @@ export default function ShoppingDetailPage({ params }: { params: Promise<{ id: s
   const cats = categories || []
 
   // Determine view mode
-  const isSubList = !!list.parent_id
+  const isSubList = !!list.parent_id && !fromListe
   const hasSubLists = (list.sub_lists || []).length > 0
 
-  // Child list → items view with back to parent
+  // Child list ouverte depuis la course → items view avec retour parent
   if (isSubList) {
     return <SubListView list={list} categories={cats} refetch={refetch} />
   }
@@ -1278,6 +1279,11 @@ export default function ShoppingDetailPage({ params }: { params: Promise<{ id: s
     return <ParentView list={list} categories={cats} refetch={refetch} />
   }
 
-  // Root list with direct items (or brand new) → simple items view, back → /shopping
+  // Vue simple (standalone ou depuis Mes listes), back → /shopping
   return <SubListView list={list} categories={cats} refetch={refetch} backHref="/shopping" />
+}
+
+export default function ShoppingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  return <Suspense><ShoppingDetailInner id={id} /></Suspense>
 }

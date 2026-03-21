@@ -462,7 +462,7 @@ export default function ShoppingPage() {
             ) : (
               <div className="space-y-3">
                 {activeLists.map(l => (
-                  <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}`)} onDelete={() => setPendingDelete(l.id)} />
+                  <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}?from=liste`)} onDelete={() => setPendingDelete(l.id)} />
                 ))}
                 {listsInCourse.length > 0 && (
                   <>
@@ -470,7 +470,7 @@ export default function ShoppingPage() {
                       🛒 Dans une course
                     </p>
                     {listsInCourse.map(l => (
-                      <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}`)} onDelete={() => setPendingDelete(l.id)} />
+                      <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}?from=liste`)} onDelete={() => setPendingDelete(l.id)} />
                     ))}
                   </>
                 )}
@@ -478,7 +478,7 @@ export default function ShoppingPage() {
                   <>
                     <p className="text-xs text-[#71717a] pt-1">Terminées</p>
                     {doneLists.map(l => (
-                      <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}`)} onDelete={() => setPendingDelete(l.id)} />
+                      <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}?from=liste`)} onDelete={() => setPendingDelete(l.id)} />
                     ))}
                   </>
                 )}
