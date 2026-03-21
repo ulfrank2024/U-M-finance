@@ -77,6 +77,7 @@ export async function GET() {
         shopping_items: undefined,
         items_count: counts.items,
         checked_count: counts.checked,
+        sub_lists_count: childrenOf.get(list.id)?.length ?? 0,
       }
     })
 

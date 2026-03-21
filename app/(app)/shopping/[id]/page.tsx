@@ -11,6 +11,8 @@ import {
   deleteShoppingItem,
   createShoppingList,
   deleteShoppingList,
+  duplicateShoppingList,
+  fetchShoppingLists,
 } from '@/lib/api'
 import type { ShoppingList, ShoppingItem, Category } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
@@ -461,6 +463,70 @@ function AddSubListModal({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// List Picker Modal (for link existing + duplicate to)
+// ──────────────────────────────────────────────────────────────────────────────
+function ListPickerModal({
+  title,
+  lists,
+  loading,
+  onSelect,
+  onClose,
+}: {
+  title: string
+  lists: ShoppingList[]
+  loading: boolean
+  onSelect: (list: ShoppingList) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={onClose}>
+      <div
+        className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl border-t border-[#3f3f46] pb-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
+          <h3 className="text-base font-bold text-[#fafafa]">{title}</h3>
+          <button onClick={onClose} className="text-[#71717a] text-lg leading-none">✕</button>
+        </div>
+        {loading ? (
+          <div className="px-6 py-8 text-center text-[#71717a] text-sm">Chargement...</div>
+        ) : lists.length === 0 ? (
+          <div className="px-6 py-8 text-center text-[#71717a] text-sm">Aucune liste disponible</div>
+        ) : (
+          <div className="overflow-y-auto max-h-72">
+            {lists.map(l => (
+              <button
+                key={l.id}
+                className="w-full flex items-center gap-3 px-6 py-3 border-b border-[#27272a] last:border-0 active:bg-[#27272a] text-left"
+                onClick={() => onSelect(l)}
+              >
+                {l.categories ? (
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ backgroundColor: `${l.categories.color}25` }}
+                  >{l.categories.icon}</span>
+                ) : (
+                  <span className="w-9 h-9 rounded-xl bg-[#27272a] flex items-center justify-center text-lg flex-shrink-0">🛍️</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-[#fafafa] font-medium truncate">{l.name}</p>
+                  {l.planned_date && (
+                    <p className="text-xs text-[#71717a]">
+                      {new Date(l.planned_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </p>
+                  )}
+                </div>
+                <StatusPill status={l.status} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Parent View
 // ──────────────────────────────────────────────────────────────────────────────
 function ParentView({
@@ -477,6 +543,9 @@ function ParentView({
   const [showEdit, setShowEdit] = useState(false)
   const [showAddSubList, setShowAddSubList] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [showLinkPicker, setShowLinkPicker] = useState(false)
+  const [linkableLists, setLinkableLists] = useState<ShoppingList[]>([])
+  const [linkLoading, setLinkLoading] = useState(false)
 
   const subLists = list.sub_lists || []
   const doneSubs = subLists.filter(sl => sl.status === 'done').length
@@ -515,6 +584,25 @@ function ParentView({
     if (list.category_id) p.set('category_id', list.category_id)
     if (list.planned_date) p.set('date', list.planned_date)
     router.push(`/transactions/new?${p.toString()}`)
+  }
+
+  const handleOpenLinkPicker = async () => {
+    setLinkLoading(true)
+    setShowLinkPicker(true)
+    try {
+      const all = await fetchShoppingLists()
+      // Exclude current list and already-linked sub-lists
+      const subIds = new Set((list.sub_lists || []).map(sl => sl.id))
+      setLinkableLists(all.filter(l => l.id !== list.id && !subIds.has(l.id)))
+    } finally {
+      setLinkLoading(false)
+    }
+  }
+
+  const handleLinkList = async (selected: ShoppingList) => {
+    setShowLinkPicker(false)
+    await updateShoppingList(selected.id, { parent_id: list.id })
+    refetch()
   }
 
   const listCat = list.categories
@@ -622,14 +710,23 @@ function ParentView({
           )}
         </div>
 
-        {/* Add sub-list button */}
-        <button
-          onClick={() => setShowAddSubList(true)}
-          className="w-full h-12 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#e879f9] hover:text-[#e879f9] transition-colors"
-        >
-          <Plus size={16} />
-          Ajouter une sous-course
-        </button>
+        {/* Add / link buttons */}
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowAddSubList(true)}
+            className="w-full h-12 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#e879f9] hover:text-[#e879f9] transition-colors"
+          >
+            <Plus size={16} />
+            Ajouter une sous-course
+          </button>
+          <button
+            onClick={handleOpenLinkPicker}
+            className="w-full h-12 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#818cf8] hover:text-[#818cf8] transition-colors"
+          >
+            <Plus size={16} />
+            Lier une liste existante
+          </button>
+        </div>
       </div>
 
       {/* Modals */}
@@ -657,6 +754,15 @@ function ParentView({
         onConfirm={handleDeleteSub}
         onCancel={() => setPendingDelete(null)}
       />
+      {showLinkPicker && (
+        <ListPickerModal
+          title="Lier une liste existante"
+          lists={linkableLists}
+          loading={linkLoading}
+          onSelect={handleLinkList}
+          onClose={() => setShowLinkPicker(false)}
+        />
+      )}
     </div>
   )
 }
@@ -668,10 +774,12 @@ function SubListView({
   list,
   categories,
   refetch,
+  backHref,
 }: {
   list: ShoppingList
   categories: Category[]
   refetch: () => void
+  backHref?: string
 }) {
   const [addName, setAddName] = useState('')
   const [addQty, setAddQty] = useState('')
@@ -682,6 +790,10 @@ function SubListView({
   const [statusLoading, setStatusLoading] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [showAllDoneBanner, setShowAllDoneBanner] = useState(false)
+  const [showDuplicatePicker, setShowDuplicatePicker] = useState(false)
+  const [duplicatableLists, setDuplicatableLists] = useState<ShoppingList[]>([])
+  const [duplicatePickerLoading, setDuplicatePickerLoading] = useState(false)
+  const [duplicateSuccess, setDuplicateSuccess] = useState('')
 
   const items = list.items || []
   const unchecked = items.filter(i => !i.is_checked)
@@ -756,13 +868,32 @@ function SubListView({
     refetch()
   }
 
+  const handleOpenDuplicatePicker = async () => {
+    setDuplicatePickerLoading(true)
+    setShowDuplicatePicker(true)
+    try {
+      const all = await fetchShoppingLists()
+      // Exclude current parent
+      setDuplicatableLists(all.filter(l => l.id !== list.parent_id))
+    } finally {
+      setDuplicatePickerLoading(false)
+    }
+  }
+
+  const handleDuplicateTo = async (target: ShoppingList) => {
+    setShowDuplicatePicker(false)
+    await duplicateShoppingList(list.id, { parent_id: target.id })
+    setDuplicateSuccess(`Dupliqué dans "${target.name}"`)
+    setTimeout(() => setDuplicateSuccess(''), 3000)
+  }
+
   return (
     <div className="min-h-screen bg-[#09090b] pb-24">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-[#09090b]/95 backdrop-blur-sm border-b border-[#3f3f46] px-4 py-3">
         <div className="flex items-center gap-3">
           <Link
-            href={`/shopping/${list.parent_id}`}
+            href={backHref ?? `/shopping/${list.parent_id}`}
             className="p-2 rounded-xl bg-[#18181b] border border-[#3f3f46] text-[#a1a1aa] flex-shrink-0 flex items-center gap-1"
           >
             <ArrowLeft size={18} />
@@ -946,6 +1077,22 @@ function SubListView({
             </div>
           </div>
         )}
+
+        {/* Duplicate success toast */}
+        {duplicateSuccess && (
+          <div className="mt-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 text-center">
+            <span className="text-emerald-400 text-sm font-medium">✅ {duplicateSuccess}</span>
+          </div>
+        )}
+
+        {/* Duplicate button */}
+        <button
+          onClick={handleOpenDuplicatePicker}
+          className="mt-2 w-full h-11 rounded-2xl border border-dashed border-[#3f3f46] text-[#a1a1aa] text-sm font-medium flex items-center justify-center gap-2 hover:border-[#818cf8] hover:text-[#818cf8] transition-colors"
+        >
+          <Plus size={15} />
+          Dupliquer vers une autre course
+        </button>
       </div>
 
       {/* Edit modal */}
@@ -955,6 +1102,15 @@ function SubListView({
           categories={categories}
           onSave={handleSaveEdit}
           onClose={() => setShowEdit(false)}
+        />
+      )}
+      {showDuplicatePicker && (
+        <ListPickerModal
+          title="Dupliquer vers..."
+          lists={duplicatableLists}
+          loading={duplicatePickerLoading}
+          onSelect={handleDuplicateTo}
+          onClose={() => setShowDuplicatePicker(false)}
         />
       )}
     </div>
@@ -1001,11 +1157,18 @@ export default function ShoppingDetailPage({ params }: { params: Promise<{ id: s
 
   // Determine view mode
   const isSubList = !!list.parent_id
+  const hasSubLists = (list.sub_lists || []).length > 0
 
+  // Child list → items view with back to parent
   if (isSubList) {
     return <SubListView list={list} categories={cats} refetch={refetch} />
   }
 
-  // Parent list (or empty root)
-  return <ParentView list={list} categories={cats} refetch={refetch} />
+  // Root list with sub-lists → parent view
+  if (hasSubLists) {
+    return <ParentView list={list} categories={cats} refetch={refetch} />
+  }
+
+  // Root list with direct items (or brand new) → simple items view, back → /shopping
+  return <SubListView list={list} categories={cats} refetch={refetch} backHref="/shopping" />
 }

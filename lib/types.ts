@@ -267,4 +267,5 @@ export interface ShoppingList {
   items_count?: number
   checked_count?: number
   sub_lists?: ShoppingList[]
+  sub_lists_count?: number
 }

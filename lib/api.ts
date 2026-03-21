@@ -112,3 +112,5 @@ export const updateShoppingItem = (listId: string, itemId: string, data: { name?
   req<ShoppingItem>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteShoppingItem = (listId: string, itemId: string) =>
   req<void>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'DELETE' })
+export const duplicateShoppingList = (id: string, data: { parent_id: string }) =>
+  req<ShoppingList>(`/api/shopping-lists/${id}/duplicate`, { method: 'POST', body: JSON.stringify(data) })
