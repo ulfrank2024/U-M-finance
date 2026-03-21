@@ -114,16 +114,22 @@ function CourseCard({ list, onPress, onDelete }: { list: ShoppingList; onPress: 
 // Modal : Nouvelle liste d'articles
 // ──────────────────────────────────────────────────────────────────────────────
 function NewListModal({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
-  const [form, setForm] = useState({ name: '', planned_date: '' })
+  const { data: categories } = useFetch<import('@/lib/types').Category[]>('/api/categories')
+  const [form, setForm] = useState({ name: '', planned_date: '', category_id: '' })
+  const [showCatPicker, setShowCatPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const selectedCat = (categories || []).find(c => c.id === form.category_id)
+  const canSubmit = !!form.name.trim() && !!form.planned_date && !!form.category_id
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canSubmit) return
     setLoading(true)
     setError('')
     try {
-      await createShoppingList({ name: form.name, planned_date: form.planned_date || null })
+      await createShoppingList({ name: form.name, planned_date: form.planned_date, category_id: form.category_id })
       onCreated()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erreur')
@@ -133,35 +139,82 @@ function NewListModal({ onCreated, onClose }: { onCreated: () => void; onClose: 
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={onClose}>
-      <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-[#fafafa] mb-1">Nouvelle liste</h3>
-        <p className="text-xs text-[#71717a] mb-4">Une liste d&apos;articles pour un magasin (ex: Super C, Dollorama…)</p>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <input
-            placeholder="Nom de la liste (ex: Super C)"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-            required
-            autoFocus
-            className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
-          />
-          <div className="flex items-center gap-2 h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl">
-            <CalendarDays size={16} className="text-[#71717a] flex-shrink-0" />
+    <>
+      <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={onClose}>
+        <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
+          <h3 className="text-lg font-bold text-[#fafafa] mb-1">Nouvelle liste</h3>
+          <p className="text-xs text-[#71717a] mb-4">Liste d&apos;articles pour un magasin ou catégorie</p>
+          <form onSubmit={handleSubmit} className="space-y-3">
             <input
-              type="date"
-              value={form.planned_date}
-              onChange={e => setForm({ ...form, planned_date: e.target.value })}
-              className="flex-1 bg-transparent text-[#fafafa] text-sm focus:outline-none"
+              placeholder="Nom de la liste (ex: Super C)"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              required
+              autoFocus
+              className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
             />
-          </div>
-          {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-60" style={btnStyle}>
-            {loading ? 'Création...' : 'Créer la liste'}
-          </button>
-        </form>
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Date <span className="text-[#e879f9]">*</span></label>
+              <div className={`flex items-center gap-2 h-11 px-4 bg-[#27272a] border rounded-xl ${!form.planned_date ? 'border-[#ef4444]/50' : 'border-[#3f3f46]'}`}>
+                <CalendarDays size={16} className="text-[#71717a] flex-shrink-0" />
+                <input
+                  type="date"
+                  value={form.planned_date}
+                  onChange={e => setForm({ ...form, planned_date: e.target.value })}
+                  required
+                  className="flex-1 bg-transparent text-[#fafafa] text-sm focus:outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Catégorie <span className="text-[#e879f9]">*</span></label>
+              <button
+                type="button"
+                onClick={() => setShowCatPicker(true)}
+                className={`w-full h-11 px-4 bg-[#27272a] border rounded-xl text-sm text-left flex items-center gap-2 ${!form.category_id ? 'border-[#ef4444]/50' : 'border-[#3f3f46]'}`}
+              >
+                {selectedCat ? (
+                  <>
+                    <span className="text-base">{selectedCat.icon}</span>
+                    <span className="text-[#fafafa] flex-1">{selectedCat.name}</span>
+                    <span className="text-[#71717a] text-xs" onClick={e => { e.stopPropagation(); setForm(f => ({ ...f, category_id: '' })) }}>✕</span>
+                  </>
+                ) : (
+                  <span className="text-[#71717a]">Choisir une catégorie…</span>
+                )}
+              </button>
+            </div>
+            {error && <p className="text-[#ef4444] text-sm bg-[#ef4444]/10 rounded-xl p-3">{error}</p>}
+            <button type="submit" disabled={loading || !canSubmit} className="w-full h-12 rounded-xl font-semibold text-white disabled:opacity-50" style={btnStyle}>
+              {loading ? 'Création...' : 'Créer la liste'}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
+      {showCatPicker && (
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/60" onClick={() => setShowCatPicker(false)}>
+          <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl border-t border-[#3f3f46] pb-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#27272a]">
+              <h3 className="text-base font-bold text-[#fafafa]">Catégorie</h3>
+              <button onClick={() => setShowCatPicker(false)} className="text-[#71717a] text-lg">✕</button>
+            </div>
+            <div className="overflow-y-auto max-h-72">
+              {(categories || []).map(c => (
+                <button
+                  key={c.id}
+                  className="w-full flex items-center gap-3 px-6 py-3 border-b border-[#27272a] last:border-0 active:bg-[#27272a]"
+                  onClick={() => { setForm(f => ({ ...f, category_id: c.id })); setShowCatPicker(false) }}
+                >
+                  <span className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: `${c.color}25` }}>{c.icon}</span>
+                  <span className={`text-sm flex-1 text-left ${form.category_id === c.id ? 'text-[#e879f9] font-semibold' : 'text-[#fafafa]'}`}>{c.name}</span>
+                  {form.category_id === c.id && <span className="text-[#e879f9]">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

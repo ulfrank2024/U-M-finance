@@ -680,13 +680,9 @@ function ParentView({
             )
           )}
           {list.status === 'done' && (
-            <button
-              onClick={handleCreateExpense}
-              className="w-full h-10 rounded-xl text-white text-sm font-semibold"
-              style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-            >
-              💳 Créer une dépense
-            </button>
+            <div className="w-full h-10 rounded-xl flex items-center justify-center bg-emerald-600/15 border border-emerald-600/30">
+              <span className="text-emerald-400 text-sm font-semibold">✅ Course terminée</span>
+            </div>
           )}
         </div>
       </div>
