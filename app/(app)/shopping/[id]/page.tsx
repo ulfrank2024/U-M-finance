@@ -789,6 +789,7 @@ function SubListView({
   refetch: () => void
   backHref?: string
 }) {
+  const router = useRouter()
   const [addName, setAddName] = useState('')
   const [addQty, setAddQty] = useState('')
   const [addLoading, setAddLoading] = useState(false)
@@ -967,8 +968,23 @@ function SubListView({
               </button>
             )}
             {list.status === 'done' && (
-              <div className="w-full h-10 rounded-xl flex items-center justify-center gap-2 bg-emerald-600/15 border border-emerald-600/30">
-                <span className="text-emerald-400 text-sm font-semibold">✅ Terminée</span>
+              <div className="flex gap-2">
+                <div className="flex-1 h-10 rounded-xl flex items-center justify-center bg-emerald-600/15 border border-emerald-600/30">
+                  <span className="text-emerald-400 text-sm font-semibold">✅ Terminée</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const p = new URLSearchParams({ description: list.name })
+                    if (list.category_id) p.set('category_id', list.category_id)
+                    if (list.planned_date) p.set('date', list.planned_date)
+                    else p.set('date', new Date().toISOString().split('T')[0])
+                    router.push(`/transactions/new?${p.toString()}`)
+                  }}
+                  className="h-10 px-3 rounded-xl text-white text-sm font-semibold flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                >
+                  💳 Dépense
+                </button>
               </div>
             )}
           </div>
