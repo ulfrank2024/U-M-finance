@@ -799,12 +799,18 @@ function SubListView({
   const [duplicatableLists, setDuplicatableLists] = useState<ShoppingList[]>([])
   const [duplicatePickerLoading, setDuplicatePickerLoading] = useState(false)
   const [duplicateSuccess, setDuplicateSuccess] = useState('')
+  const [expenseDeclared, setExpenseDeclared] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
   const items = list.items || []
   const unchecked = items.filter(i => !i.is_checked)
   const checked = items.filter(i => i.is_checked)
   const allChecked = items.length > 0 && checked.length === items.length
   const listCat = list.categories
+  // Une sous-liste dans une course (pas standalone)
+  const isInCourse = !backHref
+  // Bloquer les actions quand terminée et dépense non déclarée
+  const isDoneAndLocked = isInCourse && list.status === 'done' && !expenseDeclared
 
   // Auto-complete banner
   useEffect(() => {
@@ -897,12 +903,21 @@ function SubListView({
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-[#09090b]/95 backdrop-blur-sm border-b border-[#3f3f46] px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link
-            href={backHref ?? `/shopping/${list.parent_id}`}
-            className="p-2 rounded-xl bg-[#18181b] border border-[#3f3f46] text-[#a1a1aa] flex-shrink-0 flex items-center gap-1"
-          >
-            <ArrowLeft size={18} />
-          </Link>
+          {isDoneAndLocked ? (
+            <button
+              onClick={() => setShowLeaveConfirm(true)}
+              className="p-2 rounded-xl bg-[#18181b] border border-[#3f3f46] text-[#a1a1aa] flex-shrink-0"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          ) : (
+            <Link
+              href={backHref ?? `/shopping/${list.parent_id}`}
+              className="p-2 rounded-xl bg-[#18181b] border border-[#3f3f46] text-[#a1a1aa] flex-shrink-0 flex items-center gap-1"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {listCat && (
@@ -964,30 +979,34 @@ function SubListView({
               </button>
             )}
             {list.status === 'done' && (
-              <div className="flex gap-2">
-                <div className="flex-1 h-10 rounded-xl flex items-center justify-center bg-emerald-600/15 border border-emerald-600/30">
-                  <span className="text-emerald-400 text-sm font-semibold">✅ Terminée</span>
-                </div>
-                <button
-                  onClick={() => {
-                    const p = new URLSearchParams({ description: list.name })
-                    if (list.category_id) p.set('category_id', list.category_id)
-                    if (list.planned_date) p.set('date', list.planned_date)
-                    else p.set('date', new Date().toISOString().split('T')[0])
-                    router.push(`/transactions/new?${p.toString()}`)
-                  }}
-                  className="h-10 px-3 rounded-xl text-white text-sm font-semibold flex-shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-                >
-                  💳 Dépense
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setExpenseDeclared(true)
+                  const p = new URLSearchParams({ description: list.name })
+                  if (list.category_id) p.set('category_id', list.category_id)
+                  if (list.planned_date) p.set('date', list.planned_date)
+                  else p.set('date', new Date().toISOString().split('T')[0])
+                  router.push(`/transactions/new?${p.toString()}`)
+                }}
+                className="w-full h-10 rounded-xl text-white text-sm font-semibold animate-pulse"
+                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+              >
+                💳 Déclarer la dépense pour continuer
+              </button>
             )}
           </div>
         )}
       </div>
 
       <div className="px-4 pt-4">
+        {/* Bannière bloquante : dépense obligatoire avant de continuer */}
+        {isDoneAndLocked && (
+          <div className="mb-4 bg-amber-500/10 border border-amber-500/40 rounded-2xl p-4">
+            <p className="text-amber-400 text-sm font-semibold mb-1">💳 Dépense non déclarée</p>
+            <p className="text-amber-400/80 text-xs">Déclarez la dépense pour cette liste avant de passer à la suivante.</p>
+          </div>
+        )}
+
         {/* All done banner — uniquement dans une course */}
         {!backHref && showAllDoneBanner && (
           <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -1025,7 +1044,7 @@ function SubListView({
                 onSaveEdit={() => saveEdit(item)}
                 onCancelEdit={() => setEditItemId(null)}
                 onDelete={() => handleDeleteItem(item.id)}
-                hideCheck={!!backHref}
+                hideCheck={!!backHref || isDoneAndLocked}
               />
             ))}
             {!backHref && checked.length > 0 && (
@@ -1137,6 +1156,38 @@ function SubListView({
           onSelect={handleDuplicateTo}
           onClose={() => setShowDuplicatePicker(false)}
         />
+      )}
+
+      {/* Confirmation quitter sans déclarer */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-6">
+          <div className="w-full max-w-sm bg-[#18181b] rounded-2xl border border-[#3f3f46] p-6">
+            <p className="text-base font-bold text-[#fafafa] mb-2">Dépense non déclarée</p>
+            <p className="text-sm text-[#a1a1aa] mb-5">La dépense pour cette liste n&apos;a pas encore été déclarée. Voulez-vous quitter quand même ?</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  setExpenseDeclared(true)
+                  const p = new URLSearchParams({ description: list.name })
+                  if (list.category_id) p.set('category_id', list.category_id)
+                  if (list.planned_date) p.set('date', list.planned_date)
+                  else p.set('date', new Date().toISOString().split('T')[0])
+                  router.push(`/transactions/new?${p.toString()}`)
+                }}
+                className="w-full h-11 rounded-xl text-white text-sm font-semibold"
+                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+              >
+                💳 Déclarer maintenant
+              </button>
+              <button
+                onClick={() => router.push(`/shopping/${list.parent_id}`)}
+                className="w-full h-11 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-sm"
+              >
+                Quitter sans déclarer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
