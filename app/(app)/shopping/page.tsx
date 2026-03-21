@@ -32,7 +32,6 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 // ──────────────────────────────────────────────────────────────────────────────
 function ListCard({ list, onPress, onDelete }: { list: ShoppingList; onPress: () => void; onDelete: () => void }) {
   const itemsCount = list.items_count ?? 0
-  const checkedCount = list.checked_count ?? 0
 
   return (
     <div
@@ -44,7 +43,6 @@ function ListCard({ list, onPress, onDelete }: { list: ShoppingList; onPress: ()
           <div className="flex items-center gap-2 flex-wrap">
             {list.categories && <span className="text-base">{list.categories.icon}</span>}
             <span className="text-[#fafafa] font-semibold text-sm truncate">{list.name}</span>
-            {statusBadge(list.status)}
           </div>
           {list.planned_date && (
             <p className="text-xs text-[#71717a] mt-0.5 flex items-center gap-1">
@@ -60,9 +58,8 @@ function ListCard({ list, onPress, onDelete }: { list: ShoppingList; onPress: ()
           <Trash2 size={15} />
         </button>
       </div>
-      <ProgressBar value={checkedCount} max={itemsCount} />
-      <p className="text-xs text-[#71717a] mt-1.5">
-        {itemsCount === 0 ? 'Aucun article' : `${checkedCount} / ${itemsCount} article${itemsCount > 1 ? 's' : ''}`}
+      <p className="text-xs text-[#71717a]">
+        {itemsCount === 0 ? 'Aucun article' : `${itemsCount} article${itemsCount > 1 ? 's' : ''}`}
       </p>
     </div>
   )

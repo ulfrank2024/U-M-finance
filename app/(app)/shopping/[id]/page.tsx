@@ -912,8 +912,8 @@ function SubListView({
                 </span>
               )}
               <h1 className="text-base font-bold text-[#fafafa] truncate">{list.name}</h1>
-              <StatusPill status={list.status} />
-              <LiveBadge />
+              {!backHref && <StatusPill status={list.status} />}
+              {!backHref && <LiveBadge />}
             </div>
             {list.planned_date && (
               <p className="text-xs text-[#71717a] flex items-center gap-1 mt-0.5">
