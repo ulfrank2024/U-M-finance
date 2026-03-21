@@ -979,20 +979,30 @@ function SubListView({
               </button>
             )}
             {list.status === 'done' && (
-              <button
-                onClick={() => {
-                  setExpenseDeclared(true)
-                  const p = new URLSearchParams({ description: list.name })
-                  if (list.category_id) p.set('category_id', list.category_id)
-                  if (list.planned_date) p.set('date', list.planned_date)
-                  else p.set('date', new Date().toISOString().split('T')[0])
-                  router.push(`/transactions/new?${p.toString()}`)
-                }}
-                className="w-full h-10 rounded-xl text-white text-sm font-semibold animate-pulse"
-                style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
-              >
-                💳 Déclarer la dépense pour continuer
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setExpenseDeclared(true)
+                    const p = new URLSearchParams({ description: list.name })
+                    if (list.category_id) p.set('category_id', list.category_id)
+                    if (list.planned_date) p.set('date', list.planned_date)
+                    else p.set('date', new Date().toISOString().split('T')[0])
+                    router.push(`/transactions/new?${p.toString()}`)
+                  }}
+                  className="flex-1 h-10 rounded-xl text-white text-sm font-semibold animate-pulse"
+                  style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
+                >
+                  💳 Déclarer la dépense
+                </button>
+                <button
+                  onClick={() => { setExpenseDeclared(false); handleStatusChange('shopping') }}
+                  disabled={statusLoading}
+                  className="h-10 px-3 rounded-xl border border-[#3f3f46] text-[#a1a1aa] text-xs flex-shrink-0 disabled:opacity-50"
+                  title="Rouvrir pour modifier"
+                >
+                  ✏️ Rouvrir
+                </button>
+              </div>
             )}
           </div>
         )}
