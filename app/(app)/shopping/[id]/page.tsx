@@ -109,11 +109,13 @@ function EditListModal({
   categories,
   onSave,
   onClose,
+  hideCategory,
 }: {
   list: ShoppingList
   categories: Category[]
   onSave: (data: { name: string; planned_date: string | null; category_id: string | null }) => Promise<void>
   onClose: () => void
+  hideCategory?: boolean
 }) {
   const [form, setForm] = useState({
     name: list.name,
@@ -142,10 +144,10 @@ function EditListModal({
     <>
       <div className="fixed inset-0 z-[60] flex items-end bg-black/60" onClick={onClose}>
         <div className="w-full max-w-lg mx-auto bg-[#18181b] rounded-t-3xl p-6 border-t border-[#3f3f46]" onClick={e => e.stopPropagation()}>
-          <h3 className="text-lg font-bold text-[#fafafa] mb-4">Modifier la liste</h3>
+          <h3 className="text-lg font-bold text-[#fafafa] mb-4">{hideCategory ? 'Modifier la course' : 'Modifier la liste'}</h3>
           <form onSubmit={handleSubmit} className="space-y-3">
             <input
-              placeholder="Nom de la liste"
+              placeholder="Nom"
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
               required
@@ -163,21 +165,23 @@ function EditListModal({
                 />
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCatPicker(true)}
-              className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-sm text-left flex items-center gap-2"
-            >
-              {selectedCat ? (
-                <>
-                  <span className="text-base">{selectedCat.icon}</span>
-                  <span className="text-[#fafafa] flex-1">{selectedCat.name}</span>
-                  <span className="text-[#71717a] text-xs" onClick={e => { e.stopPropagation(); setForm({ ...form, category_id: '' }) }}>✕</span>
-                </>
-              ) : (
-                <span className="text-[#71717a]">Catégorie / Magasin (optionnel)</span>
-              )}
-            </button>
+            {!hideCategory && (
+              <button
+                type="button"
+                onClick={() => setShowCatPicker(true)}
+                className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-sm text-left flex items-center gap-2"
+              >
+                {selectedCat ? (
+                  <>
+                    <span className="text-base">{selectedCat.icon}</span>
+                    <span className="text-[#fafafa] flex-1">{selectedCat.name}</span>
+                    <span className="text-[#71717a] text-xs" onClick={e => { e.stopPropagation(); setForm({ ...form, category_id: '' }) }}>✕</span>
+                  </>
+                ) : (
+                  <span className="text-[#71717a]">Catégorie / Magasin (optionnel)</span>
+                )}
+              </button>
+            )}
             <button
               type="submit"
               disabled={loading}
@@ -739,6 +743,7 @@ function ParentView({
           categories={categories}
           onSave={handleSaveEdit}
           onClose={() => setShowEdit(false)}
+          hideCategory
         />
       )}
       {showAddSubList && (

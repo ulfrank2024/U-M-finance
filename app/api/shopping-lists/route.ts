@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 // GET /api/shopping-lists
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
@@ -67,7 +67,27 @@ export async function GET() {
     return { items, checked }
   }
 
-  // Only return root lists (parent_id IS NULL)
+  const includeAll = new URL(request.url).searchParams.get('all') === 'true'
+
+  // ?all=true → retourne toutes les listes (pour "Mes listes" + picker de course)
+  if (includeAll) {
+    const flat = allLists.map((list) => {
+      const dc = directCounts.get(list.id) || { items: 0, checked: 0 }
+      return {
+        ...list,
+        shopping_items: undefined,
+        items_count: dc.items,
+        checked_count: dc.checked,
+        sub_lists_count: childrenOf.get(list.id)?.length ?? 0,
+      }
+    })
+    flat.sort((a: { created_at: string }, b: { created_at: string }) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    return NextResponse.json(flat)
+  }
+
+  // Par défaut : uniquement les listes racine (pour "Mes courses")
   const rootLists = allLists
     .filter((l) => !l.parent_id)
     .map((list) => {
@@ -81,7 +101,6 @@ export async function GET() {
       }
     })
 
-  // Sort: open and shopping first, done last
   rootLists.sort((a: { status: string; created_at: string }, b: { status: string; created_at: string }) => {
     const order = { open: 0, shopping: 1, done: 2 }
     const aOrder = order[a.status as keyof typeof order] ?? 3

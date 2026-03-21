@@ -169,11 +169,11 @@ function NewListModal({ onCreated, onClose }: { onCreated: () => void; onClose: 
 // Modal : Nouvelle course (parent) avec sélection de listes
 // ──────────────────────────────────────────────────────────────────────────────
 function NewCourseModal({
-  standalone,
+  allLists,
   onCreated,
   onClose,
 }: {
-  standalone: ShoppingList[]
+  allLists: ShoppingList[]
   onCreated: () => void
   onClose: () => void
 }) {
@@ -242,10 +242,10 @@ function NewCourseModal({
           <p className="text-xs font-semibold text-[#a1a1aa] uppercase tracking-wider px-6 mb-2">
             Choisir les listes à inclure
           </p>
-          {standalone.length === 0 ? (
+          {allLists.length === 0 ? (
             <p className="px-6 py-4 text-sm text-[#71717a]">Aucune liste disponible — créez d&apos;abord des listes d&apos;articles.</p>
           ) : (
-            standalone.map(l => {
+            allLists.map(l => {
               const isSelected = selected.has(l.id)
               return (
                 <button
@@ -299,11 +299,16 @@ function NewCourseModal({
 // ──────────────────────────────────────────────────────────────────────────────
 export default function ShoppingPage() {
   const router = useRouter()
-  const { data: lists, loading, refetch } = useFetch<ShoppingList[]>('/api/shopping-lists')
+  // Listes racine pour "Mes courses" (agrégées)
+  const { data: rootLists, loading, refetch: refetchRoot } = useFetch<ShoppingList[]>('/api/shopping-lists')
+  // Toutes les listes pour "Mes listes" et le picker de course
+  const { data: allListsData, refetch: refetchAll } = useFetch<ShoppingList[]>('/api/shopping-lists?all=true')
 
   const [showNewList, setShowNewList] = useState(false)
   const [showNewCourse, setShowNewCourse] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+
+  function refetch() { refetchRoot(); refetchAll() }
 
   async function handleDelete() {
     if (!pendingDelete) return
@@ -312,16 +317,17 @@ export default function ShoppingPage() {
     refetch()
   }
 
-  const allLists = lists || []
-  // Courses = root lists with sub-lists
-  const courses = allLists.filter(l => (l.sub_lists_count ?? 0) > 0)
-  // Standalone = root lists without sub-lists
-  const standalone = allLists.filter(l => (l.sub_lists_count ?? 0) === 0)
+  // Courses = listes racine avec sous-listes
+  const courses = (rootLists || []).filter(l => (l.sub_lists_count ?? 0) > 0)
+  // Mes listes = toutes les listes sans sous-listes (standalone ou dans une course)
+  const myLists = (allListsData || []).filter(l => (l.sub_lists_count ?? 0) === 0)
 
   const activeCourses = courses.filter(l => l.status !== 'done')
   const doneCourses = courses.filter(l => l.status === 'done')
-  const activeLists = standalone.filter(l => l.status !== 'done')
-  const doneLists = standalone.filter(l => l.status === 'done')
+  const activeLists = myLists.filter(l => !l.parent_id)
+  const doneLists = myLists.filter(l => !l.parent_id && l.status === 'done')
+  // Listes déjà dans une course
+  const listsInCourse = myLists.filter(l => !!l.parent_id)
 
   return (
     <div className="px-4 pt-6 pb-24 min-h-screen bg-[#09090b]">
@@ -395,7 +401,7 @@ export default function ShoppingPage() {
               </button>
             </div>
 
-            {activeLists.length === 0 && doneLists.length === 0 ? (
+            {myLists.length === 0 ? (
               <div className="py-8 text-center bg-[#18181b] border border-dashed border-[#3f3f46] rounded-2xl">
                 <p className="text-2xl mb-2">📋</p>
                 <p className="text-[#71717a] text-sm">Aucune liste. Créez des listes d&apos;articles par magasin.</p>
@@ -405,6 +411,16 @@ export default function ShoppingPage() {
                 {activeLists.map(l => (
                   <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}`)} onDelete={() => setPendingDelete(l.id)} />
                 ))}
+                {listsInCourse.length > 0 && (
+                  <>
+                    <p className="text-xs text-[#71717a] pt-1 flex items-center gap-1">
+                      🛒 Dans une course
+                    </p>
+                    {listsInCourse.map(l => (
+                      <ListCard key={l.id} list={l} onPress={() => router.push(`/shopping/${l.id}`)} onDelete={() => setPendingDelete(l.id)} />
+                    ))}
+                  </>
+                )}
                 {doneLists.length > 0 && (
                   <>
                     <p className="text-xs text-[#71717a] pt-1">Terminées</p>
@@ -438,7 +454,7 @@ export default function ShoppingPage() {
 
       {showNewCourse && (
         <NewCourseModal
-          standalone={standalone}
+          allLists={(allListsData || []).filter(l => (l.sub_lists_count ?? 0) === 0)}
           onCreated={() => { setShowNewCourse(false); refetch() }}
           onClose={() => setShowNewCourse(false)}
         />
