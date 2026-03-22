@@ -401,8 +401,8 @@ export default function DashboardPage() {
       </section>
       {/* Modal Virement */}
       {showTransfer && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowTransfer(false)}>
-          <div className="w-full max-w-lg bg-[#18181b] rounded-t-3xl p-5 pb-8 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60" onClick={() => setShowTransfer(false)}>
+          <div className="w-full max-w-lg bg-[#18181b] rounded-t-3xl p-5 pb-24 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[#fafafa]">💸 Virement</h2>
               <button onClick={() => setShowTransfer(false)} className="text-[#71717a]"><X size={20} /></button>
