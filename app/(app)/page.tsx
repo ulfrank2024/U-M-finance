@@ -6,7 +6,7 @@ import { useFetch } from '@/hooks/useFetch'
 import { createClient } from '@/lib/supabase/client'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
-import { createTransfer, fetchTransfers } from '@/lib/api'
+import { createTransfer, fetchTransfers, deleteTransfer } from '@/lib/api'
 import type { Transfer } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
 import ProjectCard from '@/components/ProjectCard'
@@ -181,7 +181,7 @@ export default function DashboardPage() {
 
           {transfers.length > 0 && (
             <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-              {transfers.slice(0, 3).map((t, i, arr) => {
+              {transfers.slice(0, 5).map((t, i, arr) => {
                 const isSender = t.from_user === profile?.id
                 const other = isSender ? t.to_profile : t.from_profile
                 return (
@@ -200,6 +200,15 @@ export default function DashboardPage() {
                     <span className={`text-sm font-semibold flex-shrink-0 ${isSender ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
                       {isSender ? '-' : '+'}{new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(t.amount)}
                     </span>
+                    <button
+                      onClick={async () => {
+                        await deleteTransfer(t.id)
+                        setTransfers(prev => prev.filter(x => x.id !== t.id))
+                      }}
+                      className="ml-1 text-[#52525b] hover:text-[#ef4444] active:text-[#ef4444] flex-shrink-0"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 )
               })}

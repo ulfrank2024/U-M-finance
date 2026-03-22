@@ -120,3 +120,5 @@ export const fetchTransfers = (month?: string) =>
   req<Transfer[]>(`/api/transfers${month ? `?month=${month}` : ''}`)
 export const createTransfer = (data: { to_user: string; amount: number; note?: string; transfer_date?: string }) =>
   req<Transfer>('/api/transfers', { method: 'POST', body: JSON.stringify(data) })
+export const deleteTransfer = (id: string) =>
+  req<{ success: boolean }>(`/api/transfers/${id}`, { method: 'DELETE' })
