@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
   const noteLabel = note ? ` — ${note}` : ''
 
   // Transaction dépense pour l'envoyeur
-  await admin.from('transactions').insert({
+  const { data: txFrom } = await admin.from('transactions').insert({
     user_id: user.id,
     amount,
     description: `💸 Virement → ${toName}${noteLabel}`,
@@ -64,10 +64,10 @@ export async function POST(request: NextRequest) {
     bank_account_id: from_account_id || null,
     created_at: txDate,
     updated_by: user.id,
-  })
+  }).select('id').single()
 
   // Transaction revenu pour le receveur
-  await admin.from('transactions').insert({
+  const { data: txTo } = await admin.from('transactions').insert({
     user_id: to_user,
     amount,
     description: `💸 Virement ← ${fromName}${noteLabel}`,
@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     bank_account_id: to_account_id || null,
     created_at: txDate,
     updated_by: user.id,
-  })
+  }).select('id').single()
 
-  // Sauvegarder le virement
+  // Sauvegarder le virement avec les IDs des transactions liées
   const { data, error } = await supabase
     .from('transfers')
     .insert({
@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
       amount,
       note: note || null,
       transfer_date: transfer_date || new Date().toISOString().split('T')[0],
+      tx_from_id: (txFrom as { id: string } | null)?.id || null,
+      tx_to_id:   (txTo   as { id: string } | null)?.id || null,
     })
     .select('*, from_profile:profiles!transfers_from_user_fkey(id, display_name, avatar_color, avatar_url), to_profile:profiles!transfers_to_user_fkey(id, display_name, avatar_color, avatar_url)')
     .single()

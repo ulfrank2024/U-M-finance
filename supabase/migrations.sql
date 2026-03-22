@@ -296,3 +296,8 @@ CREATE POLICY "transfers_policy" ON transfers
   FOR ALL TO authenticated
   USING (auth.uid() IS NOT NULL)
   WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Colonnes pour lier les transactions générées par le virement
+ALTER TABLE transfers
+  ADD COLUMN IF NOT EXISTS tx_from_id UUID,
+  ADD COLUMN IF NOT EXISTS tx_to_id   UUID;

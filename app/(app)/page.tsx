@@ -214,6 +214,9 @@ export default function DashboardPage() {
                       onClick={async () => {
                         await deleteTransfer(t.id)
                         setTransfers(prev => prev.filter(x => x.id !== t.id))
+                        refetchBalance()
+                        refetchAccounts()
+                        refetchTxs()
                       }}
                       className="ml-1 text-[#52525b] hover:text-[#ef4444] active:text-[#ef4444] flex-shrink-0"
                     >
