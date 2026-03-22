@@ -84,6 +84,8 @@ export default function DashboardPage() {
       setTransferSuccess(true)
       setTimeout(() => setTransferSuccess(false), 3000)
       refetchBalance()
+      refetchAccounts()
+      refetchTxs()
     } finally {
       setTransferSaving(false)
     }
