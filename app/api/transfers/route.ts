@@ -35,10 +35,50 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { to_user, amount, note, transfer_date } = await request.json()
+  const { to_user, amount, note, transfer_date, from_account_id, to_account_id } = await request.json()
   if (!to_user) return NextResponse.json({ error: 'Destinataire requis' }, { status: 400 })
   if (!amount || amount <= 0) return NextResponse.json({ error: 'Montant invalide' }, { status: 400 })
 
+  const admin = createAdminClient()
+  const txDate = transfer_date
+    ? new Date(transfer_date + 'T12:00:00').toISOString()
+    : new Date().toISOString()
+
+  // Récupérer les noms des profils pour les descriptions
+  const [{ data: fromProfile }, { data: toProfile }] = await Promise.all([
+    admin.from('profiles').select('display_name').eq('id', user.id).single(),
+    admin.from('profiles').select('display_name').eq('id', to_user).single(),
+  ])
+
+  const fromName = (fromProfile as { display_name: string | null } | null)?.display_name || 'Moi'
+  const toName = (toProfile as { display_name: string | null } | null)?.display_name || 'Partenaire'
+  const noteLabel = note ? ` — ${note}` : ''
+
+  // Transaction dépense pour l'envoyeur
+  await admin.from('transactions').insert({
+    user_id: user.id,
+    amount,
+    description: `💸 Virement → ${toName}${noteLabel}`,
+    type: 'expense',
+    scope: 'personal',
+    bank_account_id: from_account_id || null,
+    created_at: txDate,
+    updated_by: user.id,
+  })
+
+  // Transaction revenu pour le receveur
+  await admin.from('transactions').insert({
+    user_id: to_user,
+    amount,
+    description: `💸 Virement ← ${fromName}${noteLabel}`,
+    type: 'income',
+    scope: 'personal',
+    bank_account_id: to_account_id || null,
+    created_at: txDate,
+    updated_by: user.id,
+  })
+
+  // Sauvegarder le virement
   const { data, error } = await supabase
     .from('transfers')
     .insert({

@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [transferAmount, setTransferAmount] = useState('')
   const [transferNote, setTransferNote] = useState('')
   const [transferTo, setTransferTo] = useState<string>('')
+  const [fromAccountId, setFromAccountId] = useState<string>('')
+  const [toAccountId, setToAccountId] = useState<string>('')
   const [transferSaving, setTransferSaving] = useState(false)
   const [transferSuccess, setTransferSuccess] = useState(false)
   const [transfers, setTransfers] = useState<Transfer[]>([])
@@ -68,7 +70,13 @@ export default function DashboardPage() {
     if (!transferTo || isNaN(amt) || amt <= 0) return
     setTransferSaving(true)
     try {
-      const newTransfer = await createTransfer({ to_user: transferTo, amount: amt, note: transferNote || undefined })
+      const newTransfer = await createTransfer({
+        to_user: transferTo,
+        amount: amt,
+        note: transferNote || undefined,
+        from_account_id: fromAccountId || undefined,
+        to_account_id: toAccountId || undefined,
+      })
       setTransfers(prev => [newTransfer, ...prev])
       setShowTransfer(false)
       setTransferAmount('')
@@ -475,6 +483,68 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Compte source */}
+            {(() => {
+              const myAccounts = (bankAccounts || []).filter(a => a.owner_id === profile?.id || a.is_shared)
+              if (!myAccounts.length) return null
+              return (
+                <div>
+                  <label className="text-xs text-[#a1a1aa] mb-1 block">Débiter mon compte (optionnel)</label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setFromAccountId('')}
+                      className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs border ${!fromAccountId ? 'border-[#e879f9] bg-[#e879f9]/10 text-[#e879f9]' : 'border-[#3f3f46] text-[#71717a]'}`}
+                    >
+                      Aucun
+                    </button>
+                    {myAccounts.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setFromAccountId(a.id)}
+                        className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs border ${fromAccountId === a.id ? 'text-white' : 'border-[#3f3f46] text-[#71717a]'}`}
+                        style={fromAccountId === a.id ? { backgroundColor: a.color, borderColor: a.color } : {}}
+                      >
+                        🏦 {a.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Compte destination */}
+            {(() => {
+              const partnerAccounts = (bankAccounts || []).filter(a => a.owner_id === partner?.id || a.is_shared)
+              if (!partnerAccounts.length) return null
+              return (
+                <div>
+                  <label className="text-xs text-[#a1a1aa] mb-1 block">Créditer son compte (optionnel)</label>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    <button
+                      type="button"
+                      onClick={() => setToAccountId('')}
+                      className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs border ${!toAccountId ? 'border-[#e879f9] bg-[#e879f9]/10 text-[#e879f9]' : 'border-[#3f3f46] text-[#71717a]'}`}
+                    >
+                      Aucun
+                    </button>
+                    {partnerAccounts.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setToAccountId(a.id)}
+                        className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs border ${toAccountId === a.id ? 'text-white' : 'border-[#3f3f46] text-[#71717a]'}`}
+                        style={toAccountId === a.id ? { backgroundColor: a.color, borderColor: a.color } : {}}
+                      >
+                        🏦 {a.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Montant */}
             <div>

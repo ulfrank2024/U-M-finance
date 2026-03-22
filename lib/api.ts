@@ -118,7 +118,7 @@ export const duplicateShoppingList = (id: string, data: { parent_id: string }) =
 // Transfers
 export const fetchTransfers = (month?: string) =>
   req<Transfer[]>(`/api/transfers${month ? `?month=${month}` : ''}`)
-export const createTransfer = (data: { to_user: string; amount: number; note?: string; transfer_date?: string }) =>
+export const createTransfer = (data: { to_user: string; amount: number; note?: string; transfer_date?: string; from_account_id?: string; to_account_id?: string }) =>
   req<Transfer>('/api/transfers', { method: 'POST', body: JSON.stringify(data) })
 export const deleteTransfer = (id: string) =>
   req<{ success: boolean }>(`/api/transfers/${id}`, { method: 'DELETE' })
