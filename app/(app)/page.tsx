@@ -6,7 +6,8 @@ import { useFetch } from '@/hooks/useFetch'
 import { createClient } from '@/lib/supabase/client'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
-import { createTransfer } from '@/lib/api'
+import { createTransfer, fetchTransfers } from '@/lib/api'
+import type { Transfer } from '@/lib/types'
 import BalanceCard from '@/components/BalanceCard'
 import ProjectCard from '@/components/ProjectCard'
 import MonthPicker from '@/components/ui/MonthPicker'
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const [transferNote, setTransferNote] = useState('')
   const [transferTo, setTransferTo] = useState<string>('')
   const [transferSaving, setTransferSaving] = useState(false)
+  const [transferSuccess, setTransferSuccess] = useState(false)
+  const [transfers, setTransfers] = useState<Transfer[]>([])
 
   const { data: balance, loading: bLoading, refetch: refetchBalance } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const { data: transactions, refetch: refetchTxs } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
@@ -56,15 +59,22 @@ export default function DashboardPage() {
     if (partner && !transferTo) setTransferTo(partner.id)
   }, [partner, transferTo])
 
+  useEffect(() => {
+    fetchTransfers(month).then(setTransfers).catch(() => {})
+  }, [month])
+
   async function handleTransfer() {
     const amt = parseFloat(transferAmount)
     if (!transferTo || isNaN(amt) || amt <= 0) return
     setTransferSaving(true)
     try {
-      await createTransfer({ to_user: transferTo, amount: amt, note: transferNote || undefined })
+      const newTransfer = await createTransfer({ to_user: transferTo, amount: amt, note: transferNote || undefined })
+      setTransfers(prev => [newTransfer, ...prev])
       setShowTransfer(false)
       setTransferAmount('')
       setTransferNote('')
+      setTransferSuccess(true)
+      setTimeout(() => setTransferSuccess(false), 3000)
       refetchBalance()
     } finally {
       setTransferSaving(false)
@@ -151,15 +161,51 @@ export default function DashboardPage() {
         <BalanceCard data={balance} />
       ) : null}
 
+      {/* Toast succès virement */}
+      {transferSuccess && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-[#22c55e] text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg">
+          ✅ Virement enregistré
+        </div>
+      )}
+
       {/* Virement */}
       {allProfiles && allProfiles.length >= 2 && (
-        <button
-          onClick={() => setShowTransfer(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#e879f9]/10 border border-[#e879f9]/30 text-[#e879f9] text-sm font-medium active:bg-[#e879f9]/20"
-        >
-          <ArrowLeftRight size={16} />
-          Faire un virement
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowTransfer(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#e879f9]/10 border border-[#e879f9]/30 text-[#e879f9] text-sm font-medium active:bg-[#e879f9]/20"
+          >
+            <ArrowLeftRight size={16} />
+            Faire un virement
+          </button>
+
+          {transfers.length > 0 && (
+            <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+              {transfers.slice(0, 3).map((t, i, arr) => {
+                const isSender = t.from_user === profile?.id
+                const other = isSender ? t.to_profile : t.from_profile
+                return (
+                  <div key={t.id} className={`flex items-center gap-3 px-4 py-3 ${i < arr.length - 1 ? 'border-b border-[#27272a]' : ''}`}>
+                    <div className="w-8 h-8 rounded-xl bg-[#e879f9]/15 flex items-center justify-center text-base flex-shrink-0">
+                      {isSender ? '↗️' : '↙️'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#fafafa] truncate">
+                        {isSender ? `Envoyé à ${other?.display_name || '…'}` : `Reçu de ${other?.display_name || '…'}`}
+                      </p>
+                      <p className="text-[10px] text-[#71717a]">
+                        {t.note || 'Virement'} · {new Date(t.transfer_date).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <span className={`text-sm font-semibold flex-shrink-0 ${isSender ? 'text-[#ef4444]' : 'text-[#22c55e]'}`}>
+                      {isSender ? '-' : '+'}{new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(t.amount)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Stats rapides */}

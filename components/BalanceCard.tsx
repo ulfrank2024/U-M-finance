@@ -56,6 +56,27 @@ export default function BalanceCard({ data }: Props) {
         </span>
       </div>
 
+      {/* Balance entre les deux */}
+      <div className={`mt-3 rounded-xl px-4 py-3 text-center ${balance ? 'bg-[#ef4444]/10 border border-[#ef4444]/20' : 'bg-[#22c55e]/10 border border-[#22c55e]/20'}`}>
+        {balance ? (
+          <>
+            <p className="text-xs text-[#a1a1aa] mb-0.5">Solde entre vous</p>
+            <p className="text-sm font-semibold text-[#fafafa]">
+              <span className="text-[#ef4444]">{balance.debtor}</span>
+              {' doit '}
+              <span className="text-[#22c55e] font-bold">{formatCurrency(balance.amount)}</span>
+              {' à '}
+              <span className="text-[#22c55e]">{balance.creditor}</span>
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-[#a1a1aa] mb-0.5">Solde entre vous</p>
+            <p className="text-sm font-semibold text-[#22c55e]">✅ Balance équilibrée</p>
+          </>
+        )}
+      </div>
+
     </div>
   )
 }
