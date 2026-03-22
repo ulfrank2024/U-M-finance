@@ -126,12 +126,27 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  // Balance couple (basée sur les dépenses communes + partagées)
+  // Virements du mois : ajustent la balance
+  let transfersQuery = admin
+    .from('transfers')
+    .select('from_user, to_user, amount')
+  if (dateFilter.start) transfersQuery = transfersQuery.gte('transfer_date', dateFilter.start)
+  if (dateFilter.end)   transfersQuery = transfersQuery.lte('transfer_date', dateFilter.end)
+  const { data: transfers } = await transfersQuery
+
+  // net_transfer[userId] = montant reçu - montant envoyé (positif = a reçu de l'autre)
+  const netTransfer: Record<string, number> = {}
+  for (const t of (transfers || [])) {
+    netTransfer[t.to_user]   = (netTransfer[t.to_user]   || 0) + Number(t.amount)
+    netTransfer[t.from_user] = (netTransfer[t.from_user] || 0) - Number(t.amount)
+  }
+
+  // Balance couple (basée sur les dépenses communes + partagées, ajustée par virements)
   let balanceMessage = null
   if (summary.length === 2) {
     const [p1, p2] = summary
-    const p1_shared = p1.common_expenses + p1.shared_expenses
-    const p2_shared = p2.common_expenses + p2.shared_expenses
+    const p1_shared = p1.common_expenses + p1.shared_expenses - (netTransfer[p1.user_id] || 0)
+    const p2_shared = p2.common_expenses + p2.shared_expenses - (netTransfer[p2.user_id] || 0)
     const diff = p1_shared - p2_shared
 
     if (Math.abs(diff) > 0.01) {

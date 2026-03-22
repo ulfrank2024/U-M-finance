@@ -251,6 +251,18 @@ export interface ShoppingItem {
   created_at: string
 }
 
+export interface Transfer {
+  id: string
+  from_user: string
+  to_user: string
+  amount: number
+  note: string | null
+  transfer_date: string
+  created_at: string
+  from_profile?: { id: string; display_name: string | null; avatar_color: string; avatar_url: string | null } | null
+  to_profile?: { id: string; display_name: string | null; avatar_color: string; avatar_url: string | null } | null
+}
+
 export interface ShoppingList {
   id: string
   name: string

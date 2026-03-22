@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Wallet, CreditCard, ChevronDown, ChevronRight } from 'lucide-react'
+import { Wallet, ChevronDown, ChevronRight, ArrowLeftRight, X } from 'lucide-react'
 import { useFetch } from '@/hooks/useFetch'
 import { createClient } from '@/lib/supabase/client'
 import { formatMonth, formatCurrency } from '@/lib/utils'
 import type { BalanceResponse, Transaction, Project, BankAccount, CreditCard as CreditCardType, Profile } from '@/lib/types'
+import { createTransfer } from '@/lib/api'
 import BalanceCard from '@/components/BalanceCard'
 import ProjectCard from '@/components/ProjectCard'
 import MonthPicker from '@/components/ui/MonthPicker'
@@ -17,6 +18,11 @@ export default function DashboardPage() {
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [cardsOpen, setCardsOpen] = useState(false)
   const [transactionsOpen, setTransactionsOpen] = useState(true)
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [transferAmount, setTransferAmount] = useState('')
+  const [transferNote, setTransferNote] = useState('')
+  const [transferTo, setTransferTo] = useState<string>('')
+  const [transferSaving, setTransferSaving] = useState(false)
 
   const { data: balance, loading: bLoading, refetch: refetchBalance } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const { data: transactions, refetch: refetchTxs } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
@@ -43,6 +49,27 @@ export default function DashboardPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [refetchCards, refetchAccounts, refetchBalance, refetchTxs])
+
+  const partner = (allProfiles || []).find(p => p.id !== profile?.id)
+
+  useEffect(() => {
+    if (partner && !transferTo) setTransferTo(partner.id)
+  }, [partner, transferTo])
+
+  async function handleTransfer() {
+    const amt = parseFloat(transferAmount)
+    if (!transferTo || isNaN(amt) || amt <= 0) return
+    setTransferSaving(true)
+    try {
+      await createTransfer({ to_user: transferTo, amount: amt, note: transferNote || undefined })
+      setShowTransfer(false)
+      setTransferAmount('')
+      setTransferNote('')
+      refetchBalance()
+    } finally {
+      setTransferSaving(false)
+    }
+  }
 
   const recent = (transactions || []).slice(0, 5)
   const activeProjects = (projects || []).filter(p => p.status === 'active').slice(0, 3)
@@ -123,6 +150,17 @@ export default function DashboardPage() {
       ) : balance ? (
         <BalanceCard data={balance} />
       ) : null}
+
+      {/* Virement */}
+      {allProfiles && allProfiles.length >= 2 && (
+        <button
+          onClick={() => setShowTransfer(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#e879f9]/10 border border-[#e879f9]/30 text-[#e879f9] text-sm font-medium active:bg-[#e879f9]/20"
+        >
+          <ArrowLeftRight size={16} />
+          Faire un virement
+        </button>
+      )}
 
       {/* Stats rapides */}
       {balance && (
@@ -361,6 +399,66 @@ export default function DashboardPage() {
           )
         )}
       </section>
+      {/* Modal Virement */}
+      {showTransfer && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowTransfer(false)}>
+          <div className="w-full max-w-lg bg-[#18181b] rounded-t-3xl p-5 pb-8 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-[#fafafa]">💸 Virement</h2>
+              <button onClick={() => setShowTransfer(false)} className="text-[#71717a]"><X size={20} /></button>
+            </div>
+
+            {/* De → vers */}
+            <div className="flex items-center gap-3">
+              {[profile, partner].map((p, i) => p && (
+                <div key={p.id} className="flex-1 flex flex-col items-center gap-1">
+                  <Avatar displayName={p.display_name} color={p.avatar_color} avatarUrl={p.avatar_url} size="sm" />
+                  <span className="text-[11px] text-[#a1a1aa]">{i === 0 ? 'De' : 'À'}</span>
+                  <span className="text-xs font-medium text-[#fafafa] truncate max-w-[80px] text-center">
+                    {p.display_name?.split(' ')[0] || 'Moi'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Montant */}
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Montant</label>
+              <div className="flex items-center bg-[#27272a] rounded-xl px-3 py-2.5">
+                <span className="text-[#a1a1aa] text-sm mr-1">$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={transferAmount}
+                  onChange={e => setTransferAmount(e.target.value)}
+                  className="flex-1 bg-transparent text-[#fafafa] text-sm outline-none placeholder-[#52525b]"
+                />
+              </div>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="text-xs text-[#a1a1aa] mb-1 block">Note (optionnel)</label>
+              <input
+                type="text"
+                placeholder="Ex : cadeau, remboursement loyer…"
+                value={transferNote}
+                onChange={e => setTransferNote(e.target.value)}
+                className="w-full bg-[#27272a] rounded-xl px-3 py-2.5 text-sm text-[#fafafa] outline-none placeholder-[#52525b]"
+              />
+            </div>
+
+            <button
+              onClick={handleTransfer}
+              disabled={transferSaving || !transferAmount || parseFloat(transferAmount) <= 0}
+              className="w-full py-3 rounded-xl bg-[#e879f9] text-white font-semibold text-sm disabled:opacity-50"
+            >
+              {transferSaving ? 'Enregistrement…' : 'Confirmer le virement'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

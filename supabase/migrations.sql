@@ -274,3 +274,25 @@ CREATE OR REPLACE TRIGGER set_shopping_lists_updated_at
 -- Migration 012: Sous-courses (parent_id on shopping_lists)
 ALTER TABLE shopping_lists ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES shopping_lists(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_shopping_lists_parent_id ON shopping_lists(parent_id);
+
+
+-- ============================================================
+-- Migration 013 — Virements entre partenaires
+-- ============================================================
+CREATE TABLE IF NOT EXISTS transfers (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_user   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  to_user     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  amount      NUMERIC(15, 2) NOT NULL CHECK (amount > 0),
+  note        TEXT,
+  transfer_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "transfers_policy" ON transfers;
+CREATE POLICY "transfers_policy" ON transfers
+  FOR ALL TO authenticated
+  USING (auth.uid() IS NOT NULL)
+  WITH CHECK (auth.uid() IS NOT NULL);

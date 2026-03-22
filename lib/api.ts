@@ -1,7 +1,7 @@
 import type {
   BankAccount, BalanceResponse, Budget, Category, CreditCard, CreditCardPayment,
   Profile, Project, ProjectContribution, ReportData, SharedGroup, Transaction,
-  ShoppingList, ShoppingItem
+  ShoppingList, ShoppingItem, Transfer
 } from './types'
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -114,3 +114,9 @@ export const deleteShoppingItem = (listId: string, itemId: string) =>
   req<void>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'DELETE' })
 export const duplicateShoppingList = (id: string, data: { parent_id: string }) =>
   req<ShoppingList>(`/api/shopping-lists/${id}/duplicate`, { method: 'POST', body: JSON.stringify(data) })
+
+// Transfers
+export const fetchTransfers = (month?: string) =>
+  req<Transfer[]>(`/api/transfers${month ? `?month=${month}` : ''}`)
+export const createTransfer = (data: { to_user: string; amount: number; note?: string; transfer_date?: string }) =>
+  req<Transfer>('/api/transfers', { method: 'POST', body: JSON.stringify(data) })
