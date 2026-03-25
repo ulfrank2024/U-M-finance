@@ -90,6 +90,9 @@ export async function GET(request: NextRequest) {
     if (tx.type === 'income') {
       totals[tx.user_id].income += Number(tx.amount)
     } else {
+      // Les dépenses sur carte de crédit ne sortent pas du compte bancaire maintenant.
+      // Elles seront comptées lors du remboursement de la carte (credit_card_payments ci-dessous).
+      if (tx.credit_card_id) continue
       if      (tx.scope === 'personal') totals[tx.user_id].personal_expenses += Number(tx.amount)
       else if (tx.scope === 'common')   totals[tx.user_id].common_expenses   += Number(tx.amount)
       else if (tx.scope === 'shared')   totals[tx.user_id].shared_expenses   += Number(tx.amount)
