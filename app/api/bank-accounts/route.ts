@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// GET /api/bank-accounts?mine=true  → seulement mes comptes + partagés
+// GET /api/bank-accounts?mine=true&month=2026-04
+// month filtre revenus/dépenses ; le solde reste toujours cumulatif (solde réel du compte)
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const mine = new URL(request.url).searchParams.get('mine') === 'true'
+  const params = new URL(request.url).searchParams
+  const mine  = params.get('mine') === 'true'
+  const month = params.get('month') // ex: '2026-04'
+
+  let dateStart: string | null = null
+  let dateEnd:   string | null = null
+  if (month) {
+    const [year, m] = month.split('-').map(Number)
+    dateStart = `${month}-01`
+    dateEnd   = new Date(year, m, 0).toISOString().split('T')[0]
+  }
 
   let q = supabase
     .from('bank_accounts')
@@ -15,44 +26,50 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: true })
 
   if (mine) {
-    // Mes comptes (owner = moi) OU sans propriétaire OU partagés
     q = q.or(`owner_id.eq.${user.id},owner_id.is.null,is_shared.eq.true`)
   }
 
   const { data: accounts, error } = await q
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Calcule le solde de chaque compte
   const accountsWithBalance = await Promise.all(
     (accounts || []).map(async (account) => {
-      const { data: incomeTxs } = await supabase
-        .from('transactions')
-        .select('amount')
-        .eq('bank_account_id', account.id)
-        .eq('type', 'income')
+      // Revenus du mois (ou tout si pas de filtre)
+      let incomeQ = supabase.from('transactions').select('amount').eq('bank_account_id', account.id).eq('type', 'income')
+      if (dateStart) incomeQ = incomeQ.gte('created_at', dateStart)
+      if (dateEnd)   incomeQ = incomeQ.lte('created_at', dateEnd)
+      const { data: incomeTxs } = await incomeQ
 
-      const { data: expenseTxs } = await supabase
-        .from('transactions')
-        .select('amount')
-        .eq('bank_account_id', account.id)
-        .eq('type', 'expense')
+      // Dépenses du mois
+      let expenseQ = supabase.from('transactions').select('amount').eq('bank_account_id', account.id).eq('type', 'expense')
+      if (dateStart) expenseQ = expenseQ.gte('created_at', dateStart)
+      if (dateEnd)   expenseQ = expenseQ.lte('created_at', dateEnd)
+      const { data: expenseTxs } = await expenseQ
 
-      // Paiements de carte de crédit prélevés sur ce compte
-      const { data: cardPayments } = await supabase
-        .from('credit_card_payments')
-        .select('amount')
-        .eq('bank_account_id', account.id)
+      // Paiements CC du mois (sorties réelles du compte)
+      let ccQ = supabase.from('credit_card_payments').select('amount').eq('bank_account_id', account.id)
+      if (dateStart) ccQ = ccQ.gte('payment_date', dateStart)
+      if (dateEnd)   ccQ = ccQ.lte('payment_date', dateEnd)
+      const { data: monthCardPayments } = await ccQ
+
+      // Solde cumulatif (toutes périodes confondues — solde réel du compte)
+      const { data: allIncome }    = await supabase.from('transactions').select('amount').eq('bank_account_id', account.id).eq('type', 'income')
+      const { data: allExpenses }  = await supabase.from('transactions').select('amount').eq('bank_account_id', account.id).eq('type', 'expense')
+      const { data: allCCPayments} = await supabase.from('credit_card_payments').select('amount').eq('bank_account_id', account.id)
 
       const total_income        = (incomeTxs || []).reduce((s, t) => s + Number(t.amount), 0)
       const total_expenses      = (expenseTxs || []).reduce((s, t) => s + Number(t.amount), 0)
-      const total_card_payments = (cardPayments || []).reduce((s, p) => s + Number(p.amount), 0)
+      const total_card_payments = (monthCardPayments || []).reduce((s, p) => s + Number(p.amount), 0)
+
+      const cum_income   = (allIncome    || []).reduce((s, t) => s + Number(t.amount), 0)
+      const cum_expenses = (allExpenses  || []).reduce((s, t) => s + Number(t.amount), 0)
+      const cum_cc       = (allCCPayments|| []).reduce((s, p) => s + Number(p.amount), 0)
 
       return {
         ...account,
         total_income,
         total_expenses: total_expenses + total_card_payments,
-        balance: total_income - total_expenses - total_card_payments,
+        balance: cum_income - cum_expenses - cum_cc, // toujours cumulatif
       }
     })
   )

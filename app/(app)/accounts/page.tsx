@@ -4,16 +4,18 @@ import { Plus, Pencil, X, CreditCard, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { useFetch } from '@/hooks/useFetch'
 import { createBankAccount, updateBankAccount, deleteBankAccount } from '@/lib/api'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatMonth } from '@/lib/utils'
 import type { BankAccount, Profile } from '@/lib/types'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import MonthPicker from '@/components/ui/MonthPicker'
 
 const PRESET_COLORS = ['#6366f1','#3b82f6','#22c55e','#f59e0b','#ef4444','#e879f9','#14b8a6','#f97316','#a855f7','#ec4899']
 
 export default function AccountsPage() {
-  const { data: accounts, loading, refetch } = useFetch<BankAccount[]>('/api/bank-accounts')
+  const [month, setMonth] = useState(() => formatMonth(new Date()))
+  const { data: accounts, loading, refetch } = useFetch<BankAccount[]>(`/api/bank-accounts?month=${month}`)
   const { data: me } = useFetch<Profile>('/api/profile')
   const meId = me?.id ?? null
   const [showAdd, setShowAdd] = useState(false)
@@ -86,21 +88,24 @@ export default function AccountsPage() {
                   </div>
                 )}
               </div>
-              {/* Solde */}
+              {/* Revenus/Dépenses du mois + Solde cumulatif */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
                   <p className="text-[10px] text-[#a1a1aa] mb-0.5">Revenus</p>
                   <p className="text-xs font-semibold text-[#22c55e]">{formatCurrency(acc.total_income)}</p>
+                  <p className="text-[9px] text-[#52525b]">ce mois</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-[#a1a1aa] mb-0.5">Dépenses</p>
                   <p className="text-xs font-semibold text-[#ef4444]">{formatCurrency(acc.total_expenses)}</p>
+                  <p className="text-[9px] text-[#52525b]">ce mois</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-[#a1a1aa] mb-0.5">Solde</p>
                   <p className={`text-sm font-bold ${acc.balance >= 0 ? 'text-[#fafafa]' : 'text-[#ef4444]'}`}>
                     {formatCurrency(acc.balance)}
                   </p>
+                  <p className="text-[9px] text-[#52525b]">cumulatif</p>
                 </div>
               </div>
             </div>
@@ -117,9 +122,12 @@ export default function AccountsPage() {
           <h1 className="text-xl font-bold text-[#fafafa]">Comptes</h1>
           <p className="text-xs text-[#a1a1aa] mt-0.5">Débit & crédit</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="p-2 rounded-xl text-white" style={btnStyle}>
-          <Plus size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <MonthPicker value={month} onChange={setMonth} />
+          <button onClick={() => setShowAdd(true)} className="p-2 rounded-xl text-white" style={btnStyle}>
+            <Plus size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Section comptes bancaires */}
