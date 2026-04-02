@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, ArrowLeftRight, Wallet, BarChart2, Plus, Target, ShoppingCart } from 'lucide-react'
+import { Home, ArrowLeftRight, Wallet, TrendingUp, Plus, Target, ShoppingCart } from 'lucide-react'
 
 const tabs = [
   { href: '/',             icon: Home,          label: 'Accueil' },
@@ -10,7 +10,7 @@ const tabs = [
   { href: '/transactions/new', icon: Plus,       label: '', fab: true },
   { href: '/accounts',     icon: Wallet,         label: 'Comptes' },
   { href: '/projects',     icon: Target,         label: 'Projets' },
-  { href: '/report',       icon: BarChart2,      label: 'Rapport' },
+  { href: '/analytics',    icon: TrendingUp,     label: 'Stats' },
 ]
 
 export default function BottomNav() {
