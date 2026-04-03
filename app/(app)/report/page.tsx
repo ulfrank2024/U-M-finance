@@ -366,85 +366,88 @@ export default function ReportPage() {
             <h2 className="text-sm font-semibold text-[#fafafa] mb-3">📈 Tendance 6 mois</h2>
             <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46] overflow-x-auto">
               {(() => {
-                const H = 160
+                const TOP = 28        // espace au-dessus des barres pour les valeurs
+                const H   = 140       // hauteur des barres
+                const BOT = 38        // espace sous les barres pour les labels
                 const barW = 22
                 const gap = 5
                 const groupW = barW * 2 + gap
                 const spacing = 20
                 const totalW = data.trend.length * (groupW + spacing) - spacing + 10
+                const totalH = TOP + H + BOT
                 const isCurrentMonth = (m: string) => m === month
+                // barY(h) = position y du haut de la barre
+                const barY = (h: number) => TOP + H - h
+                const fmt = (v: number) =>
+                  v >= 1000 ? `${(v / 1000).toFixed(1).replace('.0', '')}k$` : `${Math.round(v)}$`
 
                 return (
-                  <svg width="100%" viewBox={`0 0 ${totalW} ${H + 50}`} className="min-w-[280px]">
+                  <svg width="100%" viewBox={`0 0 ${totalW} ${totalH}`} className="min-w-[280px]">
+                    <defs>
+                      {data.trend.map((_, i) => (
+                        <g key={i}>
+                          <linearGradient id={`gin${i}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.9" />
+                            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.25" />
+                          </linearGradient>
+                          <linearGradient id={`gout${i}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
+                            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
+                          </linearGradient>
+                        </g>
+                      ))}
+                    </defs>
+
                     {/* Lignes de grille horizontales */}
                     {[0.25, 0.5, 0.75, 1].map(pct => (
-                      <g key={pct}>
-                        <line
-                          x1={0} y1={H - pct * H} x2={totalW} y2={H - pct * H}
-                          stroke="#27272a" strokeWidth="1" strokeDasharray="4,4"
-                        />
-                        <text x={0} y={H - pct * H - 2} fontSize="7" fill="#3f3f46">
-                          {new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(maxTrendVal * pct)}
-                        </text>
-                      </g>
+                      <line key={pct}
+                        x1={0} y1={TOP + H - pct * H} x2={totalW} y2={TOP + H - pct * H}
+                        stroke="#27272a" strokeWidth="1" strokeDasharray="4,4"
+                      />
                     ))}
 
                     {data.trend.map((t, i) => {
-                      const x = i * (groupW + spacing)
+                      const x    = i * (groupW + spacing)
                       const hIn  = maxTrendVal > 0 ? (t.income   / maxTrendVal) * H : 0
                       const hOut = maxTrendVal > 0 ? (t.expenses / maxTrendVal) * H : 0
                       const isCur = isCurrentMonth(t.month)
-                      const fmt = (v: number) =>
-                        v >= 1000
-                          ? `${(v / 1000).toFixed(1).replace('.0', '')}k`
-                          : `${Math.round(v)}$`
 
                       return (
                         <g key={t.month}>
-                          {/* Barre revenus avec dégradé */}
-                          <defs>
-                            <linearGradient id={`gin${i}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={isCur ? '#22c55e' : '#22c55e'} stopOpacity={isCur ? '1' : '0.45'} />
-                              <stop offset="100%" stopColor={isCur ? '#16a34a' : '#22c55e'} stopOpacity={isCur ? '0.7' : '0.2'} />
-                            </linearGradient>
-                            <linearGradient id={`gout${i}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={isCur ? '#ef4444' : '#ef4444'} stopOpacity={isCur ? '1' : '0.45'} />
-                              <stop offset="100%" stopColor={isCur ? '#dc2626' : '#ef4444'} stopOpacity={isCur ? '0.7' : '0.2'} />
-                            </linearGradient>
-                          </defs>
-
-                          {/* Fond surbrillance mois courant */}
+                          {/* Surbrillance mois courant */}
                           {isCur && (
-                            <rect x={x - 3} y={0} width={groupW + 6} height={H}
-                              rx={4} fill="#ffffff08" />
+                            <rect x={x - 4} y={TOP} width={groupW + 8} height={H}
+                              rx={6} fill="#ffffff08" />
                           )}
 
                           {/* Barre revenus */}
-                          <rect x={x} y={H - hIn} width={barW} height={hIn}
-                            rx={4} fill={`url(#gin${i})`} />
-                          {/* Valeur revenu au-dessus */}
+                          <rect x={x} y={barY(hIn)} width={barW} height={hIn}
+                            rx={4} fill={isCur ? '#22c55e' : `url(#gin${i})`} />
+                          {/* Valeur revenu — toujours visible car TOP=28 */}
                           {hIn > 0 && (
-                            <text x={x + barW / 2} y={H - hIn - 4}
+                            <text x={x + barW / 2} y={barY(hIn) - 4}
                               textAnchor="middle" fontSize="8"
-                              fill={isCur ? '#22c55e' : '#4ade80'} fontWeight={isCur ? 'bold' : 'normal'}>
+                              fill={isCur ? '#22c55e' : '#4ade80'}
+                              fontWeight={isCur ? 'bold' : 'normal'}>
                               {fmt(t.income)}
                             </text>
                           )}
 
                           {/* Barre dépenses */}
-                          <rect x={x + barW + gap} y={H - hOut} width={barW} height={hOut}
-                            rx={4} fill={`url(#gout${i})`} />
-                          {/* Valeur dépenses au-dessus */}
+                          <rect x={x + barW + gap} y={barY(hOut)} width={barW} height={hOut}
+                            rx={4} fill={isCur ? '#ef4444' : `url(#gout${i})`} />
+                          {/* Valeur dépenses */}
                           {hOut > 0 && (
-                            <text x={x + barW + gap + barW / 2} y={H - hOut - 4}
+                            <text x={x + barW + gap + barW / 2} y={barY(hOut) - 4}
                               textAnchor="middle" fontSize="8"
-                              fill={isCur ? '#ef4444' : '#f87171'} fontWeight={isCur ? 'bold' : 'normal'}>
+                              fill={isCur ? '#ef4444' : '#f87171'}
+                              fontWeight={isCur ? 'bold' : 'normal'}>
                               {fmt(t.expenses)}
                             </text>
                           )}
 
                           {/* Label mois */}
-                          <text x={x + groupW / 2} y={H + 14}
+                          <text x={x + groupW / 2} y={TOP + H + 14}
                             textAnchor="middle" fontSize="9"
                             fill={isCur ? '#fafafa' : '#71717a'}
                             fontWeight={isCur ? 'bold' : 'normal'}>
@@ -455,7 +458,7 @@ export default function ReportPage() {
                           {(() => {
                             const net = t.income - t.expenses
                             return (
-                              <text x={x + groupW / 2} y={H + 26}
+                              <text x={x + groupW / 2} y={TOP + H + 26}
                                 textAnchor="middle" fontSize="7.5"
                                 fill={net >= 0 ? '#22c55e' : '#ef4444'}>
                                 {net >= 0 ? '+' : ''}{fmt(net)}
@@ -467,7 +470,7 @@ export default function ReportPage() {
                     })}
 
                     {/* Ligne de base */}
-                    <line x1={0} y1={H} x2={totalW} y2={H} stroke="#3f3f46" strokeWidth="1.5" />
+                    <line x1={0} y1={TOP + H} x2={totalW} y2={TOP + H} stroke="#3f3f46" strokeWidth="1.5" />
                   </svg>
                 )
               })()}
