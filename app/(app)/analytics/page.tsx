@@ -2,133 +2,188 @@
 import { useState, useMemo } from 'react'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatCurrency } from '@/lib/utils'
-import type { Transaction, ReportData } from '@/lib/types'
+import type { Transaction } from '@/lib/types'
 import MonthPicker from '@/components/ui/MonthPicker'
-import Avatar from '@/components/ui/Avatar'
 
 const MONTH_SHORT: Record<string, string> = {
   '01':'Jan','02':'Fév','03':'Mar','04':'Avr','05':'Mai','06':'Jun',
   '07':'Jul','08':'Aoû','09':'Sep','10':'Oct','11':'Nov','12':'Déc',
 }
 
-// ─── Graphique barres SVG (6 mois) ───────────────────────────────────────────
-function BarChart({ trend }: { trend: { month: string; income: number; expenses: number }[] }) {
+interface AnalyticsData {
+  months: number
+  trend: { month: string; income: number; expenses: number; savings: number }[]
+  totals: { income: number; expenses: number; savings: number; avg_savings_rate: number }
+  best_month:  { month: string; income: number; expenses: number; savings: number }
+  worst_month: { month: string; income: number; expenses: number; savings: number }
+  category_breakdown: { name: string; icon: string; color: string; is_fixed: boolean; amount: number }[]
+}
+
+// ─── Barres : revenus vs dépenses par mois ────────────────────────────────────
+function BarChart({ trend }: { trend: AnalyticsData['trend'] }) {
   const maxVal = Math.max(...trend.map(t => Math.max(t.income, t.expenses)), 1)
-  const H = 120
-  const barW = 18
-  const gap = 4
+  const H = 130; const barW = 13; const gap = 3
   const groupW = barW * 2 + gap
-  const spacing = 12
+  const spacing = trend.length > 8 ? 5 : 11
   const totalW = trend.length * (groupW + spacing)
+  const now = new Date()
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   return (
     <div className="w-full overflow-x-auto">
-      <svg width="100%" viewBox={`0 0 ${totalW} ${H + 28}`} className="min-w-[280px]">
+      <svg width="100%" viewBox={`0 0 ${totalW} ${H + 28}`} className="min-w-[300px]">
+        {[0.25,0.5,0.75,1].map(p => (
+          <line key={p} x1={0} y1={H - p*H} x2={totalW} y2={H - p*H} stroke="#27272a" strokeWidth="0.5" strokeDasharray="3,3" />
+        ))}
         {trend.map((t, i) => {
           const x = i * (groupW + spacing)
-          const hIncome  = (t.income   / maxVal) * H
-          const hExpense = (t.expenses / maxVal) * H
-          const isLast   = i === trend.length - 1
+          const hIn  = (t.income   / maxVal) * H
+          const hOut = (t.expenses / maxVal) * H
+          const cur  = t.month === currentMonth
           return (
             <g key={t.month}>
-              {/* Barre revenus */}
-              <rect
-                x={x} y={H - hIncome} width={barW} height={hIncome}
-                rx={3} fill={isLast ? '#22c55e' : '#22c55e55'}
-              />
-              {/* Valeur revenu (si dernière barre) */}
-              {isLast && hIncome > 15 && (
-                <text x={x + barW / 2} y={H - hIncome - 3} textAnchor="middle" fontSize="7" fill="#22c55e">
-                  {formatCurrency(t.income).replace('CA', '').replace('$', '$')}
-                </text>
-              )}
-              {/* Barre dépenses */}
-              <rect
-                x={x + barW + gap} y={H - hExpense} width={barW} height={hExpense}
-                rx={3} fill={isLast ? '#ef4444' : '#ef444455'}
-              />
-              {/* Mois label */}
-              <text x={x + groupW / 2} y={H + 14} textAnchor="middle" fontSize="9" fill={isLast ? '#fafafa' : '#71717a'}>
-                {MONTH_SHORT[t.month.split('-')[1]] || t.month.split('-')[1]}
+              <rect x={x}           y={H-hIn}  width={barW} height={hIn}  rx={3} fill={cur ? '#22c55e' : '#22c55e44'} />
+              <rect x={x+barW+gap}  y={H-hOut} width={barW} height={hOut} rx={3} fill={cur ? '#ef4444' : '#ef444444'} />
+              <text x={x+groupW/2} y={H+13} textAnchor="middle" fontSize="8" fill={cur ? '#fafafa' : '#52525b'} fontWeight={cur ? 'bold' : 'normal'}>
+                {MONTH_SHORT[t.month.split('-')[1]]}
+              </text>
+              <text x={x+groupW/2} y={H+23} textAnchor="middle" fontSize="7" fill="#3f3f46">
+                {t.month.split('-')[0].slice(2)}
               </text>
             </g>
           )
         })}
-        {/* Ligne 0 */}
         <line x1={0} y1={H} x2={totalW} y2={H} stroke="#3f3f46" strokeWidth="1" />
       </svg>
-
-      <div className="flex items-center gap-5 justify-center mt-1">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-[#22c55e]" />
-          <span className="text-[11px] text-[#a1a1aa]">Revenus</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-[#ef4444]" />
-          <span className="text-[11px] text-[#a1a1aa]">Dépenses</span>
-        </div>
+      <div className="flex items-center gap-5 justify-center mt-2">
+        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]"><span className="w-3 h-3 rounded-sm bg-[#22c55e] inline-block"/>Revenus</span>
+        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]"><span className="w-3 h-3 rounded-sm bg-[#ef4444] inline-block"/>Dépenses</span>
       </div>
     </div>
   )
 }
 
-// ─── Graphique donut SVG ──────────────────────────────────────────────────────
-function DonutChart({ slices }: { slices: { name: string; icon: string; color: string; amount: number }[] }) {
-  const total = slices.reduce((s, c) => s + c.amount, 0)
-  if (total === 0) return <p className="text-sm text-[#71717a] text-center py-6">Aucune dépense ce mois</p>
-
-  const R = 60
-  const cx = 80
-  const cy = 80
-  const stroke = 24
-
-  let cumulAngle = -Math.PI / 2
-  const arcs = slices.map(sl => {
-    const angle = (sl.amount / total) * 2 * Math.PI
-    const start = cumulAngle
-    const end = cumulAngle + angle
-    cumulAngle = end
-
-    const x1 = cx + R * Math.cos(start)
-    const y1 = cy + R * Math.sin(start)
-    const x2 = cx + R * Math.cos(end)
-    const y2 = cy + R * Math.sin(end)
-    const large = angle > Math.PI ? 1 : 0
-
-    return { ...sl, d: `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}`, pct: Math.round((sl.amount / total) * 100) }
-  })
+// ─── Courbe : épargne dans le temps ──────────────────────────────────────────
+function SavingsLineChart({ trend }: { trend: AnalyticsData['trend'] }) {
+  const vals = trend.map(t => t.savings)
+  const minVal = Math.min(...vals); const maxVal = Math.max(...vals)
+  const range = maxVal - minVal || 1
+  const H = 100; const STEP = trend.length > 8 ? 28 : 40; const totalW = (trend.length - 1) * STEP + 20
+  const toY = (v: number) => H - 10 - ((v - minVal) / range) * (H - 20)
+  const toX = (i: number) => i * STEP + 10
+  const pts = trend.map((t, i) => ({ x: toX(i), y: toY(t.savings), v: t.savings, m: t.month }))
+  const area = `M ${pts[0].x},${H} ${pts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${pts[pts.length-1].x},${H} Z`
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4">
-      {/* SVG */}
-      <div className="flex-shrink-0">
-        <svg width="160" height="160" viewBox="0 0 160 160">
-          {arcs.map((arc, i) => (
-            <path
-              key={i}
-              d={arc.d}
-              fill="none"
-              stroke={arc.color}
-              strokeWidth={stroke}
-              strokeLinecap="butt"
-            />
-          ))}
-          {/* Centre */}
-          <text x={cx} y={cy - 6} textAnchor="middle" fontSize="11" fill="#a1a1aa">Total</text>
-          <text x={cx} y={cy + 9} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#fafafa">
-            {formatCurrency(total)}
+    <div className="w-full overflow-x-auto">
+      <svg width="100%" viewBox={`0 0 ${totalW+20} ${H+20}`} className="min-w-[260px]">
+        {minVal < 0 && maxVal > 0 && (
+          <line x1={0} y1={toY(0)} x2={totalW+20} y2={toY(0)} stroke="#3f3f46" strokeWidth="1" strokeDasharray="4,2" />
+        )}
+        <path d={area} fill="url(#sg)" opacity="0.25" />
+        <polyline points={pts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round" />
+        {pts.map((p,i) => (
+          <circle key={i} cx={p.x} cy={p.y} r={3} fill={p.v>=0?'#22c55e':'#ef4444'} stroke="#09090b" strokeWidth="1.5" />
+        ))}
+        {pts.map((p,i) => (
+          <text key={i} x={p.x} y={H+14} textAnchor="middle" fontSize="8" fill="#52525b">
+            {MONTH_SHORT[p.m.split('-')[1]]}
           </text>
+        ))}
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#818cf8"/><stop offset="100%" stopColor="#818cf800"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  )
+}
+
+// ─── Barres par jour : transactions du mois ───────────────────────────────────
+function DailyChart({ transactions, month }: { transactions: Transaction[]; month: string }) {
+  const [year, mo] = month.split('-').map(Number)
+  const daysInMonth = new Date(year, mo, 0).getDate()
+
+  const byDay = useMemo(() => {
+    const map: Record<number, { income: number; expenses: number }> = {}
+    for (let d = 1; d <= daysInMonth; d++) map[d] = { income: 0, expenses: 0 }
+    transactions.forEach(tx => {
+      const d = parseInt(tx.created_at.slice(8, 10))
+      if (!map[d]) return
+      if (tx.type === 'income') map[d].income += Number(tx.amount)
+      else map[d].expenses += Number(tx.amount)
+    })
+    return map
+  }, [transactions, daysInMonth])
+
+  const maxVal = Math.max(...Object.values(byDay).map(d => Math.max(d.income, d.expenses)), 1)
+  const H = 80; const barW = 5; const gap = 1; const spacing = 2
+  const groupW = barW * 2 + gap
+  const totalW = daysInMonth * (groupW + spacing)
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg width="100%" viewBox={`0 0 ${totalW} ${H + 20}`} className="min-w-[340px]">
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1
+          const d = byDay[day]
+          const x = i * (groupW + spacing)
+          const hIn  = (d.income   / maxVal) * H
+          const hOut = (d.expenses / maxVal) * H
+          const hasData = d.income > 0 || d.expenses > 0
+          return (
+            <g key={day}>
+              <rect x={x}          y={H-hIn}  width={barW} height={hIn}  rx={1.5} fill={hasData ? '#22c55e' : '#22c55e22'} />
+              <rect x={x+barW+gap} y={H-hOut} width={barW} height={hOut} rx={1.5} fill={hasData ? '#ef4444' : '#ef444422'} />
+              {day % 5 === 0 && (
+                <text x={x+groupW/2} y={H+13} textAnchor="middle" fontSize="7.5" fill="#52525b">{day}</text>
+              )}
+            </g>
+          )
+        })}
+        <line x1={0} y1={H} x2={totalW} y2={H} stroke="#3f3f46" strokeWidth="1" />
+      </svg>
+      <div className="flex items-center justify-between mt-1 px-1">
+        <span className="text-[10px] text-[#52525b]">1er</span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]"><span className="w-2 h-2 rounded-sm bg-[#22c55e] inline-block"/>Revenus</span>
+          <span className="flex items-center gap-1 text-[10px] text-[#a1a1aa]"><span className="w-2 h-2 rounded-sm bg-[#ef4444] inline-block"/>Dépenses</span>
+        </div>
+        <span className="text-[10px] text-[#52525b]">{daysInMonth}</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Donut SVG ────────────────────────────────────────────────────────────────
+function DonutChart({ slices }: { slices: AnalyticsData['category_breakdown'] }) {
+  const total = slices.reduce((s, c) => s + c.amount, 0)
+  if (total === 0) return <p className="text-sm text-[#71717a] text-center py-6">Aucune dépense</p>
+  const R = 58; const cx = 75; const cy = 75; const sw = 22
+  let cumul = -Math.PI / 2
+  const arcs = slices.slice(0, 10).map(sl => {
+    const angle = (sl.amount / total) * 2 * Math.PI
+    const s = cumul; cumul += angle
+    const x1=cx+R*Math.cos(s), y1=cy+R*Math.sin(s), x2=cx+R*Math.cos(cumul), y2=cy+R*Math.sin(cumul)
+    return { ...sl, d:`M ${x1} ${y1} A ${R} ${R} 0 ${angle>Math.PI?1:0} 1 ${x2} ${y2}`, pct: Math.round((sl.amount/total)*100) }
+  })
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-5">
+      <div className="flex-shrink-0">
+        <svg width="150" height="150" viewBox="0 0 150 150">
+          {arcs.map((a,i) => <path key={i} d={a.d} fill="none" stroke={a.color} strokeWidth={sw} strokeLinecap="butt" />)}
+          <text x={cx} y={cy-5} textAnchor="middle" fontSize="9" fill="#a1a1aa">Total</text>
+          <text x={cx} y={cy+9} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#fafafa">{formatCurrency(total)}</text>
         </svg>
       </div>
-
-      {/* Légende */}
-      <div className="flex-1 space-y-2 w-full">
-        {arcs.slice(0, 8).map((arc, i) => (
+      <div className="flex-1 space-y-2 w-full min-w-0">
+        {arcs.map((a,i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: arc.color }} />
-            <span className="text-xs text-[#d4d4d8] truncate flex-1">{arc.icon} {arc.name}</span>
-            <span className="text-xs font-semibold text-[#fafafa] flex-shrink-0">{arc.pct}%</span>
-            <span className="text-xs text-[#71717a] flex-shrink-0 w-20 text-right">{formatCurrency(arc.amount)}</span>
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor:a.color}}/>
+            <span className="text-xs text-[#d4d4d8] truncate flex-1">{a.icon} {a.name}</span>
+            <span className="text-[11px] text-[#71717a] flex-shrink-0">{a.pct}%</span>
+            <span className="text-xs font-semibold text-[#fafafa] flex-shrink-0 w-20 text-right">{formatCurrency(a.amount)}</span>
           </div>
         ))}
       </div>
@@ -136,192 +191,158 @@ function DonutChart({ slices }: { slices: { name: string; icon: string; color: s
   )
 }
 
-// ─── Page principale ──────────────────────────────────────────────────────────
-export default function AnalyticsPage() {
-  const [month, setMonth] = useState(() => formatMonth(new Date()))
+// ─── Page ─────────────────────────────────────────────────────────────────────
+const PERIODS = [{ label:'3 mois', v:3 },{ label:'6 mois', v:6 },{ label:'12 mois', v:12 },{ label:'24 mois', v:24 }]
 
-  const { data: report, loading: rLoading } = useFetch<ReportData>(`/api/report?month=${month}`)
+export default function AnalyticsPage() {
+  const [months, setMonths] = useState(12)
+  const [month,  setMonth ] = useState(() => formatMonth(new Date()))
+
+  const { data, loading: aLoading } = useFetch<AnalyticsData>(`/api/analytics?months=${months}`)
   const { data: transactions, loading: tLoading } = useFetch<Transaction[]>(`/api/transactions?month=${month}`)
 
-  const loading = rLoading || tLoading
-
-  // Dépenses par catégorie pour le donut
-  const categorySlices = useMemo(() => {
-    if (!report) return []
-    return [...report.fixed_breakdown, ...report.variable_breakdown]
-      .sort((a, b) => b.amount - a.amount)
-  }, [report])
-
-  // Transactions groupées par jour
-  const byDay = useMemo(() => {
-    if (!transactions) return []
-    const map = new Map<string, Transaction[]>()
-    transactions.forEach(tx => {
-      const day = tx.created_at.slice(0, 10)
-      if (!map.has(day)) map.set(day, [])
-      map.get(day)!.push(tx)
-    })
-    return [...map.entries()].sort(([a], [b]) => b.localeCompare(a))
-  }, [transactions])
-
-  const net = report ? report.income - report.fixed_expenses - report.variable_expenses : 0
+  const loading = aLoading || tLoading
 
   return (
     <div className="px-4 pt-6 pb-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#fafafa]">Analytique</h1>
-          <p className="text-xs text-[#a1a1aa] mt-0.5">Revenus & dépenses du mois</p>
-        </div>
-        <MonthPicker value={month} onChange={setMonth} />
+      <div>
+        <h1 className="text-xl font-bold text-[#fafafa]">Analytique</h1>
+        <p className="text-xs text-[#a1a1aa] mt-0.5">Vue d&apos;ensemble dans le temps</p>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1,2,3].map(i => <div key={i} className="h-32 bg-[#18181b] rounded-2xl animate-pulse" />)}
-        </div>
-      ) : (
+        <div className="space-y-4">{[1,2,3,4,5].map(i => <div key={i} className="h-36 bg-[#18181b] rounded-2xl animate-pulse" />)}</div>
+      ) : !data ? null : (
         <>
-          {/* ── Résumé 4 cartes ── */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <p className="text-[11px] text-[#a1a1aa] mb-1">Revenus</p>
-              <p className="text-lg font-bold text-[#22c55e]">{formatCurrency(report?.income ?? 0)}</p>
-            </div>
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <p className="text-[11px] text-[#a1a1aa] mb-1">Dépenses</p>
-              <p className="text-lg font-bold text-[#ef4444]">
-                {formatCurrency((report?.fixed_expenses ?? 0) + (report?.variable_expenses ?? 0))}
-              </p>
-            </div>
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <p className="text-[11px] text-[#a1a1aa] mb-1">Net</p>
-              <p className={`text-lg font-bold ${net >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                {formatCurrency(net)}
-              </p>
-            </div>
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <p className="text-[11px] text-[#a1a1aa] mb-1">Taux épargne</p>
-              <p className={`text-lg font-bold ${(report?.savings_rate ?? 0) >= 20 ? 'text-[#22c55e]' : (report?.savings_rate ?? 0) >= 10 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
-                {report?.savings_rate ?? 0}%
-              </p>
-            </div>
+          {/* ── Sélecteur de période ── */}
+          <div className="flex items-center gap-1 bg-[#27272a] rounded-xl p-1 self-start">
+            {PERIODS.map(p => (
+              <button key={p.v} onClick={() => setMonths(p.v)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${months===p.v ? 'bg-[#e879f9] text-white' : 'text-[#a1a1aa]'}`}>
+                {p.label}
+              </button>
+            ))}
           </div>
 
-          {/* ── Graphique barres 6 mois ── */}
-          {report && report.trend.length > 0 && (
-            <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <p className="text-sm font-semibold text-[#fafafa] mb-4">📈 Tendance 6 mois</p>
-              <BarChart trend={report.trend} />
-            </section>
+          {/* ── 4 cartes totaux ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label:'Revenus totaux',    val: data.totals.income,          color:'text-[#22c55e]' },
+              { label:'Dépenses totales',  val: data.totals.expenses,        color:'text-[#ef4444]' },
+              { label:'Épargne totale',    val: data.totals.savings,         color: data.totals.savings>=0 ? 'text-[#818cf8]' : 'text-[#ef4444]' },
+              { label:'Taux épargne moy.', val: data.totals.avg_savings_rate, color: data.totals.avg_savings_rate>=20?'text-[#22c55e]':data.totals.avg_savings_rate>=10?'text-[#f59e0b]':'text-[#ef4444]', pct: true },
+            ].map(c => (
+              <div key={c.label} className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
+                <p className="text-[11px] text-[#a1a1aa] mb-1">{c.label}</p>
+                <p className={`text-base font-bold ${c.color}`}>{c.pct ? `${c.val}%` : formatCurrency(c.val)}</p>
+                <p className="text-[10px] text-[#52525b] mt-0.5">sur {months} mois</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Meilleur / Pire mois ── */}
+          {data.trend.length > 1 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-2xl p-4">
+                <p className="text-[11px] text-[#22c55e] mb-1">🏆 Meilleur mois</p>
+                <p className="text-xs font-semibold text-[#fafafa]">
+                  {MONTH_SHORT[data.best_month.month.split('-')[1]]} {data.best_month.month.split('-')[0]}
+                </p>
+                <p className="text-sm font-bold text-[#22c55e]">{formatCurrency(data.best_month.savings)} épargné</p>
+              </div>
+              <div className="bg-[#ef4444]/10 border border-[#ef4444]/30 rounded-2xl p-4">
+                <p className="text-[11px] text-[#ef4444] mb-1">⚠️ Mois difficile</p>
+                <p className="text-xs font-semibold text-[#fafafa]">
+                  {MONTH_SHORT[data.worst_month.month.split('-')[1]]} {data.worst_month.month.split('-')[0]}
+                </p>
+                <p className="text-sm font-bold text-[#ef4444]">{formatCurrency(data.worst_month.savings)} épargné</p>
+              </div>
+            </div>
           )}
 
-          {/* ── Graphique donut ── */}
+          {/* ── Graphique barres revenus vs dépenses ── */}
           <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-            <p className="text-sm font-semibold text-[#fafafa] mb-4">🍩 Répartition des dépenses</p>
-            <DonutChart slices={categorySlices} />
+            <p className="text-sm font-semibold text-[#fafafa] mb-0.5">📊 Revenus vs Dépenses</p>
+            <p className="text-[11px] text-[#71717a] mb-4">Évolution sur {months} mois</p>
+            <BarChart trend={data.trend} />
           </section>
 
-          {/* ── Liste complète par jour ── */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-[#fafafa]">
-                📋 Toutes les transactions
-                {transactions && <span className="ml-1.5 text-xs font-normal text-[#71717a]">({transactions.length})</span>}
-              </p>
+          {/* ── Courbe épargne + tableau ── */}
+          <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
+            <p className="text-sm font-semibold text-[#fafafa] mb-0.5">📈 Épargne mensuelle</p>
+            <p className="text-[11px] text-[#71717a] mb-4">Revenus − Dépenses par mois</p>
+            <SavingsLineChart trend={data.trend} />
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-[11px] min-w-[300px]">
+                <thead>
+                  <tr className="text-[#52525b] border-b border-[#27272a]">
+                    <th className="text-left pb-1.5 font-medium">Mois</th>
+                    <th className="text-right pb-1.5 font-medium text-[#22c55e]">Revenus</th>
+                    <th className="text-right pb-1.5 font-medium text-[#ef4444]">Dépenses</th>
+                    <th className="text-right pb-1.5 font-medium text-[#818cf8]">Épargne</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.trend].reverse().map(t => (
+                    <tr key={t.month} className="border-b border-[#27272a]/40">
+                      <td className="py-1.5 text-[#a1a1aa]">{MONTH_SHORT[t.month.split('-')[1]]} {t.month.split('-')[0]}</td>
+                      <td className="py-1.5 text-right text-[#22c55e]">{formatCurrency(t.income)}</td>
+                      <td className="py-1.5 text-right text-[#ef4444]">{formatCurrency(t.expenses)}</td>
+                      <td className={`py-1.5 text-right font-semibold ${t.savings>=0?'text-[#818cf8]':'text-[#ef4444]'}`}>{formatCurrency(t.savings)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-[#3f3f46]">
+                    <td className="pt-2 text-[#71717a] font-semibold">Total</td>
+                    <td className="pt-2 text-right text-[#22c55e] font-bold">{formatCurrency(data.totals.income)}</td>
+                    <td className="pt-2 text-right text-[#ef4444] font-bold">{formatCurrency(data.totals.expenses)}</td>
+                    <td className={`pt-2 text-right font-bold ${data.totals.savings>=0?'text-[#818cf8]':'text-[#ef4444]'}`}>{formatCurrency(data.totals.savings)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
+          </section>
 
-            {byDay.length === 0 ? (
-              <div className="bg-[#18181b] rounded-2xl p-6 border border-[#3f3f46] text-center">
-                <p className="text-2xl mb-2">📭</p>
-                <p className="text-sm text-[#a1a1aa]">Aucune transaction ce mois</p>
+          {/* ── Graphique transactions par jour du mois ── */}
+          <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <p className="text-sm font-semibold text-[#fafafa]">📅 Transactions par jour</p>
+                <p className="text-[11px] text-[#71717a] mt-0.5">Revenus & dépenses chaque jour du mois</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {byDay.map(([day, txs]) => {
-                  const dayIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-                  const dayExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-                  const dayLabel = new Date(day + 'T12:00:00').toLocaleDateString('fr-CA', {
-                    weekday: 'long', day: 'numeric', month: 'long'
-                  })
-
-                  return (
-                    <div key={day}>
-                      {/* En-tête du jour */}
-                      <div className="flex items-center justify-between mb-1.5 px-1">
-                        <p className="text-xs font-medium text-[#a1a1aa] capitalize">{dayLabel}</p>
-                        <div className="flex items-center gap-2 text-[11px]">
-                          {dayIncome > 0 && <span className="text-[#22c55e]">+{formatCurrency(dayIncome)}</span>}
-                          {dayExpenses > 0 && <span className="text-[#ef4444]">-{formatCurrency(dayExpenses)}</span>}
-                        </div>
-                      </div>
-
-                      {/* Transactions du jour */}
-                      <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
-                        {txs.map((tx, i) => {
-                          const isIncome = tx.type === 'income'
-                          return (
-                            <div
-                              key={tx.id}
-                              className={`flex items-center gap-3 px-4 py-3 ${i < txs.length - 1 ? 'border-b border-[#27272a]' : ''}`}
-                            >
-                              {/* Icône catégorie */}
-                              <div
-                                className="w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0"
-                                style={{ backgroundColor: tx.categories?.color ? `${tx.categories.color}25` : '#27272a' }}
-                              >
-                                {tx.categories?.icon || (isIncome ? '💰' : '📁')}
-                              </div>
-
-                              {/* Info */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[#fafafa] truncate">
-                                  {tx.description || tx.categories?.name || (isIncome ? 'Revenu' : 'Dépense')}
-                                </p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {tx.categories?.name && (
-                                    <span className="text-[10px] text-[#71717a]">{tx.categories.name}</span>
-                                  )}
-                                  {tx.profiles && (
-                                    <div className="flex items-center gap-1">
-                                      <Avatar
-                                        displayName={tx.profiles.display_name}
-                                        color={tx.profiles.avatar_color}
-                                        avatarUrl={tx.profiles.avatar_url}
-                                        size="xs"
-                                      />
-                                    </div>
-                                  )}
-                                  {tx.credit_cards && (
-                                    <span className="text-[10px] text-[#71717a]">💳 {tx.credit_cards.name}</span>
-                                  )}
-                                  {tx.bank_accounts && (
-                                    <span className="text-[10px] text-[#71717a]">🏦 {tx.bank_accounts.name}</span>
-                                  )}
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                                    tx.categories?.is_fixed
-                                      ? 'bg-[#f97316]/15 text-[#f97316]'
-                                      : 'bg-[#27272a] text-[#71717a]'
-                                  }`}>
-                                    {tx.categories?.is_fixed ? 'Fixe' : isIncome ? 'Revenu' : 'Variable'}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Montant */}
-                              <span className={`text-sm font-semibold flex-shrink-0 ${isIncome ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
-                                {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
+              <MonthPicker value={month} onChange={setMonth} />
+            </div>
+            <div className="mt-4">
+              {transactions && transactions.length > 0
+                ? <DailyChart transactions={transactions} month={month} />
+                : <p className="text-sm text-[#71717a] text-center py-4">Aucune transaction ce mois</p>
+              }
+            </div>
+            {transactions && transactions.length > 0 && (
+              <div className="mt-3 grid grid-cols-2 gap-2 pt-3 border-t border-[#27272a]">
+                <div>
+                  <p className="text-[10px] text-[#a1a1aa]">Total revenus du mois</p>
+                  <p className="text-sm font-bold text-[#22c55e]">
+                    {formatCurrency(transactions.filter(t=>t.type==='income').reduce((s,t)=>s+Number(t.amount),0))}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#a1a1aa]">Total dépenses du mois</p>
+                  <p className="text-sm font-bold text-[#ef4444]">
+                    {formatCurrency(transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+Number(t.amount),0))}
+                  </p>
+                </div>
               </div>
             )}
+          </section>
+
+          {/* ── Donut répartition des dépenses ── */}
+          <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
+            <p className="text-sm font-semibold text-[#fafafa] mb-0.5">🍩 Répartition des dépenses</p>
+            <p className="text-[11px] text-[#71717a] mb-4">Par catégorie sur {months} mois</p>
+            <DonutChart slices={data.category_breakdown} />
           </section>
         </>
       )}
