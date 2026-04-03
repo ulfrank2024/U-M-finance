@@ -361,39 +361,130 @@ export default function ReportPage() {
             </section>
           )}
 
-          {/* Tendance 6 mois */}
+          {/* Tendance 6 mois — graphique SVG */}
           <section>
             <h2 className="text-sm font-semibold text-[#fafafa] mb-3">📈 Tendance 6 mois</h2>
-            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
-              <div className="flex items-end justify-between gap-2 h-28 mb-2">
-                {data.trend.map((t, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="w-full flex items-end gap-0.5 justify-center" style={{ height: '80px' }}>
-                      {/* Barre revenus */}
-                      <div
-                        className="w-[45%] rounded-t-sm bg-[#22c55e]/70"
-                        style={{ height: `${(t.income / maxTrendVal) * 80}px` }}
-                      />
-                      {/* Barre dépenses */}
-                      <div
-                        className="w-[45%] rounded-t-sm bg-[#ef4444]/70"
-                        style={{ height: `${(t.expenses / maxTrendVal) * 80}px` }}
-                      />
-                    </div>
-                    <span className="text-[10px] text-[#71717a]">
-                      {MONTH_SHORT[t.month.split('-')[1]] || t.month.split('-')[1]}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-4 justify-center pt-2 border-t border-[#27272a]">
+            <div className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46] overflow-x-auto">
+              {(() => {
+                const H = 160
+                const barW = 22
+                const gap = 5
+                const groupW = barW * 2 + gap
+                const spacing = 20
+                const totalW = data.trend.length * (groupW + spacing) - spacing + 10
+                const isCurrentMonth = (m: string) => m === month
+
+                return (
+                  <svg width="100%" viewBox={`0 0 ${totalW} ${H + 50}`} className="min-w-[280px]">
+                    {/* Lignes de grille horizontales */}
+                    {[0.25, 0.5, 0.75, 1].map(pct => (
+                      <g key={pct}>
+                        <line
+                          x1={0} y1={H - pct * H} x2={totalW} y2={H - pct * H}
+                          stroke="#27272a" strokeWidth="1" strokeDasharray="4,4"
+                        />
+                        <text x={0} y={H - pct * H - 2} fontSize="7" fill="#3f3f46">
+                          {new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }).format(maxTrendVal * pct)}
+                        </text>
+                      </g>
+                    ))}
+
+                    {data.trend.map((t, i) => {
+                      const x = i * (groupW + spacing)
+                      const hIn  = maxTrendVal > 0 ? (t.income   / maxTrendVal) * H : 0
+                      const hOut = maxTrendVal > 0 ? (t.expenses / maxTrendVal) * H : 0
+                      const isCur = isCurrentMonth(t.month)
+                      const fmt = (v: number) =>
+                        v >= 1000
+                          ? `${(v / 1000).toFixed(1).replace('.0', '')}k`
+                          : `${Math.round(v)}$`
+
+                      return (
+                        <g key={t.month}>
+                          {/* Barre revenus avec dégradé */}
+                          <defs>
+                            <linearGradient id={`gin${i}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={isCur ? '#22c55e' : '#22c55e'} stopOpacity={isCur ? '1' : '0.45'} />
+                              <stop offset="100%" stopColor={isCur ? '#16a34a' : '#22c55e'} stopOpacity={isCur ? '0.7' : '0.2'} />
+                            </linearGradient>
+                            <linearGradient id={`gout${i}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={isCur ? '#ef4444' : '#ef4444'} stopOpacity={isCur ? '1' : '0.45'} />
+                              <stop offset="100%" stopColor={isCur ? '#dc2626' : '#ef4444'} stopOpacity={isCur ? '0.7' : '0.2'} />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Fond surbrillance mois courant */}
+                          {isCur && (
+                            <rect x={x - 3} y={0} width={groupW + 6} height={H}
+                              rx={4} fill="#ffffff08" />
+                          )}
+
+                          {/* Barre revenus */}
+                          <rect x={x} y={H - hIn} width={barW} height={hIn}
+                            rx={4} fill={`url(#gin${i})`} />
+                          {/* Valeur revenu au-dessus */}
+                          {hIn > 0 && (
+                            <text x={x + barW / 2} y={H - hIn - 4}
+                              textAnchor="middle" fontSize="8"
+                              fill={isCur ? '#22c55e' : '#4ade80'} fontWeight={isCur ? 'bold' : 'normal'}>
+                              {fmt(t.income)}
+                            </text>
+                          )}
+
+                          {/* Barre dépenses */}
+                          <rect x={x + barW + gap} y={H - hOut} width={barW} height={hOut}
+                            rx={4} fill={`url(#gout${i})`} />
+                          {/* Valeur dépenses au-dessus */}
+                          {hOut > 0 && (
+                            <text x={x + barW + gap + barW / 2} y={H - hOut - 4}
+                              textAnchor="middle" fontSize="8"
+                              fill={isCur ? '#ef4444' : '#f87171'} fontWeight={isCur ? 'bold' : 'normal'}>
+                              {fmt(t.expenses)}
+                            </text>
+                          )}
+
+                          {/* Label mois */}
+                          <text x={x + groupW / 2} y={H + 14}
+                            textAnchor="middle" fontSize="9"
+                            fill={isCur ? '#fafafa' : '#71717a'}
+                            fontWeight={isCur ? 'bold' : 'normal'}>
+                            {MONTH_SHORT[t.month.split('-')[1]] || t.month.split('-')[1]}
+                          </text>
+
+                          {/* Net (épargne) sous le mois */}
+                          {(() => {
+                            const net = t.income - t.expenses
+                            return (
+                              <text x={x + groupW / 2} y={H + 26}
+                                textAnchor="middle" fontSize="7.5"
+                                fill={net >= 0 ? '#22c55e' : '#ef4444'}>
+                                {net >= 0 ? '+' : ''}{fmt(net)}
+                              </text>
+                            )
+                          })()}
+                        </g>
+                      )
+                    })}
+
+                    {/* Ligne de base */}
+                    <line x1={0} y1={H} x2={totalW} y2={H} stroke="#3f3f46" strokeWidth="1.5" />
+                  </svg>
+                )
+              })()}
+
+              {/* Légende */}
+              <div className="flex items-center gap-5 justify-center mt-3 pt-3 border-t border-[#27272a]">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-[#22c55e]/70" />
+                  <div className="w-3 h-3 rounded-sm bg-[#22c55e]" />
                   <span className="text-[11px] text-[#a1a1aa]">Revenus</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-sm bg-[#ef4444]/70" />
+                  <div className="w-3 h-3 rounded-sm bg-[#ef4444]" />
                   <span className="text-[11px] text-[#a1a1aa]">Dépenses</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3 h-3 rounded-sm" style={{ background: 'linear-gradient(to right, #22c55e, #ef4444)' }} />
+                  <span className="text-[11px] text-[#a1a1aa]">Net sous le mois</span>
                 </div>
               </div>
             </div>
