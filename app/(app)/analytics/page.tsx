@@ -19,45 +19,113 @@ interface AnalyticsData {
   category_breakdown: { name: string; icon: string; color: string; is_fixed: boolean; amount: number }[]
 }
 
-// ─── Barres : revenus vs dépenses par mois ────────────────────────────────────
-function BarChart({ trend }: { trend: AnalyticsData['trend'] }) {
+// ─── Courbe : revenus vs dépenses par mois ───────────────────────────────────
+function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
+  const TOP = 20; const H = 130; const BOT = 30
+  const totalH = TOP + H + BOT
+  const STEP = trend.length > 8 ? 32 : 48
+  const PAD = 16
+  const totalW = (trend.length - 1) * STEP + PAD * 2
+
   const maxVal = Math.max(...trend.map(t => Math.max(t.income, t.expenses)), 1)
-  const H = 130; const barW = 13; const gap = 3
-  const groupW = barW * 2 + gap
-  const spacing = trend.length > 8 ? 5 : 11
-  const totalW = trend.length * (groupW + spacing)
+  const toX = (i: number) => PAD + i * STEP
+  const toY = (v: number) => TOP + H - (v / maxVal) * H
+
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
+  const incPts  = trend.map((t, i) => ({ x: toX(i), y: toY(t.income),   v: t.income,   m: t.month }))
+  const expPts  = trend.map((t, i) => ({ x: toX(i), y: toY(t.expenses), v: t.expenses, m: t.month }))
+
+  const polyInc = incPts.map(p => `${p.x},${p.y}`).join(' ')
+  const polyExp = expPts.map(p => `${p.x},${p.y}`).join(' ')
+
+  // Zone remplie sous chaque courbe
+  const areaInc = `M ${incPts[0].x},${TOP+H} ${incPts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${incPts[incPts.length-1].x},${TOP+H} Z`
+  const areaExp = `M ${expPts[0].x},${TOP+H} ${expPts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${expPts[expPts.length-1].x},${TOP+H} Z`
+
+  const fmt = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1).replace('.0','')}k` : `${Math.round(v)}`
+
   return (
     <div className="w-full overflow-x-auto">
-      <svg width="100%" viewBox={`0 0 ${totalW} ${H + 28}`} className="min-w-[300px]">
-        {[0.25,0.5,0.75,1].map(p => (
-          <line key={p} x1={0} y1={H - p*H} x2={totalW} y2={H - p*H} stroke="#27272a" strokeWidth="0.5" strokeDasharray="3,3" />
+      <svg width="100%" viewBox={`0 0 ${totalW} ${totalH}`} className="min-w-[300px]">
+        <defs>
+          <linearGradient id="areaInc" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3"/>
+            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02"/>
+          </linearGradient>
+          <linearGradient id="areaExp" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25"/>
+            <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02"/>
+          </linearGradient>
+        </defs>
+
+        {/* Grille horizontale */}
+        {[0.25, 0.5, 0.75, 1].map(p => (
+          <line key={p} x1={PAD} y1={TOP + H - p*H} x2={totalW - PAD} y2={TOP + H - p*H}
+            stroke="#27272a" strokeWidth="0.8" strokeDasharray="4,4" />
         ))}
+
+        {/* Zones remplies */}
+        <path d={areaExp} fill="url(#areaExp)" />
+        <path d={areaInc} fill="url(#areaInc)" />
+
+        {/* Courbe dépenses */}
+        <polyline points={polyExp} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Courbe revenus */}
+        <polyline points={polyInc} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+        {/* Points + labels */}
         {trend.map((t, i) => {
-          const x = i * (groupW + spacing)
-          const hIn  = (t.income   / maxVal) * H
-          const hOut = (t.expenses / maxVal) * H
-          const cur  = t.month === currentMonth
+          const isCur = t.month === currentMonth
+          const xi = toX(i)
+          const yi = toY(t.income)
+          const ye = toY(t.expenses)
           return (
             <g key={t.month}>
-              <rect x={x}           y={H-hIn}  width={barW} height={hIn}  rx={3} fill={cur ? '#22c55e' : '#22c55e44'} />
-              <rect x={x+barW+gap}  y={H-hOut} width={barW} height={hOut} rx={3} fill={cur ? '#ef4444' : '#ef444444'} />
-              <text x={x+groupW/2} y={H+13} textAnchor="middle" fontSize="8" fill={cur ? '#fafafa' : '#52525b'} fontWeight={cur ? 'bold' : 'normal'}>
+              {/* Ligne verticale mois courant */}
+              {isCur && (
+                <line x1={xi} y1={TOP} x2={xi} y2={TOP+H} stroke="#ffffff18" strokeWidth="1.5" strokeDasharray="3,3" />
+              )}
+              {/* Point revenu */}
+              <circle cx={xi} cy={yi} r={isCur ? 4 : 2.5} fill="#22c55e" stroke="#09090b" strokeWidth="1.5" />
+              {/* Valeur revenu (mois courant seulement) */}
+              {isCur && (
+                <text x={xi} y={yi - 7} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">
+                  {fmt(t.income)}
+                </text>
+              )}
+              {/* Point dépense */}
+              <circle cx={xi} cy={ye} r={isCur ? 4 : 2.5} fill="#ef4444" stroke="#09090b" strokeWidth="1.5" />
+              {/* Valeur dépense (mois courant seulement) */}
+              {isCur && (
+                <text x={xi} y={ye - 7} textAnchor="middle" fontSize="8" fill="#ef4444" fontWeight="bold">
+                  {fmt(t.expenses)}
+                </text>
+              )}
+              {/* Label mois */}
+              <text x={xi} y={TOP+H+14} textAnchor="middle" fontSize="8"
+                fill={isCur ? '#fafafa' : '#52525b'} fontWeight={isCur ? 'bold' : 'normal'}>
                 {MONTH_SHORT[t.month.split('-')[1]]}
               </text>
-              <text x={x+groupW/2} y={H+23} textAnchor="middle" fontSize="7" fill="#3f3f46">
+              <text x={xi} y={TOP+H+24} textAnchor="middle" fontSize="7" fill="#3f3f46">
                 {t.month.split('-')[0].slice(2)}
               </text>
             </g>
           )
         })}
-        <line x1={0} y1={H} x2={totalW} y2={H} stroke="#3f3f46" strokeWidth="1" />
+
+        {/* Ligne de base */}
+        <line x1={PAD} y1={TOP+H} x2={totalW-PAD} y2={TOP+H} stroke="#3f3f46" strokeWidth="1" />
       </svg>
+
       <div className="flex items-center gap-5 justify-center mt-2">
-        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]"><span className="w-3 h-3 rounded-sm bg-[#22c55e] inline-block"/>Revenus</span>
-        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]"><span className="w-3 h-3 rounded-sm bg-[#ef4444] inline-block"/>Dépenses</span>
+        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]">
+          <span className="w-6 h-0.5 bg-[#22c55e] inline-block rounded-full"/>Revenus
+        </span>
+        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]">
+          <span className="w-6 h-0.5 bg-[#ef4444] inline-block rounded-full"/>Dépenses
+        </span>
       </div>
     </div>
   )
@@ -265,7 +333,7 @@ export default function AnalyticsPage() {
           <section className="bg-[#18181b] rounded-2xl p-4 border border-[#3f3f46]">
             <p className="text-sm font-semibold text-[#fafafa] mb-0.5">📊 Revenus vs Dépenses</p>
             <p className="text-[11px] text-[#71717a] mb-4">Évolution sur {months} mois</p>
-            <BarChart trend={data.trend} />
+            <LineChart trend={data.trend} />
           </section>
 
           {/* ── Courbe épargne + tableau ── */}
