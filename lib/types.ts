@@ -258,6 +258,7 @@ export interface GroceryArticle {
   brand: string
   unit: string
   best_price: number | null
+  store_prices: { store: string; price: number }[]
   stores: string[]
 }
 

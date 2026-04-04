@@ -110,6 +110,8 @@ export const addShoppingItem = (listId: string, data: { name: string; quantity?:
   req<ShoppingItem>(`/api/shopping-lists/${listId}/items`, { method: 'POST', body: JSON.stringify(data) })
 export const searchGroceryArticles = (q: string, store?: string) =>
   req<import('./types').GroceryArticle[]>(`/api/grocery-articles?q=${encodeURIComponent(q)}${store ? `&store=${encodeURIComponent(store)}` : ''}`)
+export const fetchGroceryArticlesCatalogue = (store?: string) =>
+  req<import('./types').GroceryArticle[]>(`/api/grocery-articles${store ? `?store=${encodeURIComponent(store)}` : ''}`)
 export const createGroceryArticle = (data: { name: string; brand?: string; unit?: string }) =>
   req<import('./types').GroceryArticle>('/api/grocery-articles', { method: 'POST', body: JSON.stringify(data) })
 export const updateShoppingItem = (listId: string, itemId: string, data: { name?: string; quantity?: string | null; estimated_price?: number | null; actual_price?: number | null; is_checked?: boolean }) =>

@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     .from('grocery_articles')
     .select('id, name, brand, unit, article_store_prices(store_name, price, recorded_at)')
     .order('name')
-    .limit(15)
+    .limit(q ? 15 : 500)
 
   if (q.length >= 1) query = query.ilike('name', `%${q}%`)
 
@@ -28,22 +28,21 @@ export async function GET(request: NextRequest) {
 
   const articles = (data as ArticleRow[] || []).map(a => {
     const prices = (a.article_store_prices || []) as StorePrice[]
+
+    // Deduplicate: latest price per store
+    const latestByStore = new Map<string, number>()
+    for (const p of [...prices].sort((x, y) => y.recorded_at.localeCompare(x.recorded_at))) {
+      if (!latestByStore.has(p.store_name)) latestByStore.set(p.store_name, Number(p.price))
+    }
+    const store_prices = Array.from(latestByStore.entries()).map(([s, price]) => ({ store: s, price }))
+
     let best_price: number | null = null
-
     if (store) {
-      const sp = prices
-        .filter(p => p.store_name.toLowerCase() === store.toLowerCase())
-        .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
-      if (sp.length > 0) best_price = Number(sp[0].price)
+      best_price = latestByStore.get(store) ?? latestByStore.get(
+        [...latestByStore.keys()].find(k => k.toLowerCase() === store.toLowerCase()) ?? ''
+      ) ?? null
     }
-
-    if (best_price === null && prices.length > 0) {
-      const latest = [...prices].sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
-      best_price = Number(latest[0].price)
-      // Annotate with store name for display
-    }
-
-    const storeNames = [...new Set(prices.map(p => p.store_name))]
+    if (best_price === null && store_prices.length > 0) best_price = store_prices[0].price
 
     return {
       id: a.id,
@@ -51,7 +50,8 @@ export async function GET(request: NextRequest) {
       brand: a.brand,
       unit: a.unit,
       best_price,
-      stores: storeNames,
+      store_prices,
+      stores: store_prices.map(sp => sp.store),
     }
   })
 

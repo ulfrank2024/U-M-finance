@@ -14,6 +14,7 @@ import {
   duplicateShoppingList,
   fetchShoppingLists,
   searchGroceryArticles,
+  fetchGroceryArticlesCatalogue,
 } from '@/lib/api'
 import type { ShoppingList, ShoppingItem, Category, GroceryArticle } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
@@ -792,6 +793,215 @@ function ParentView({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Catalogue Modal — Browse & select articles grouped by store
+// ──────────────────────────────────────────────────────────────────────────────
+function CatalogueModal({
+  listStoreName,
+  onAdd,
+  onClose,
+}: {
+  listStoreName?: string | null
+  onAdd: (items: { article: GroceryArticle; price: number | null }[]) => Promise<void>
+  onClose: () => void
+}) {
+  const [catalogue, setCatalogue] = useState<GroceryArticle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [q, setQ] = useState('')
+  const [activeStore, setActiveStore] = useState<string>('__all__')
+  const [selected, setSelected] = useState<Map<string, GroceryArticle>>(new Map())
+  const [adding, setAdding] = useState(false)
+
+  // Load catalogue on mount
+  useEffect(() => {
+    fetchGroceryArticlesCatalogue()
+      .then(data => {
+        setCatalogue(data)
+        // Default to the list's store if it exists in the catalogue
+        if (listStoreName) {
+          const stores = [...new Set(data.flatMap(a => a.stores))]
+          const match = stores.find(s => s.toLowerCase() === listStoreName.toLowerCase())
+          if (match) setActiveStore(match)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [listStoreName])
+
+  // All unique stores
+  const allStores = [...new Set(catalogue.flatMap(a => a.stores))].sort()
+
+  // Filter by search + active store
+  const filtered = catalogue.filter(a => {
+    const matchQ = !q || a.name.toLowerCase().includes(q.toLowerCase()) || a.brand.toLowerCase().includes(q.toLowerCase())
+    const matchStore = activeStore === '__all__' || a.stores.includes(activeStore)
+    return matchQ && matchStore
+  })
+
+  // Group by store when "Tous" selected, flat list when specific store
+  const getPriceForArticle = (a: GroceryArticle): number | null => {
+    if (activeStore !== '__all__') {
+      return a.store_prices.find(sp => sp.store === activeStore)?.price ?? a.best_price
+    }
+    return a.best_price
+  }
+
+  const toggleSelect = (a: GroceryArticle) => {
+    setSelected(prev => {
+      const next = new Map(prev)
+      if (next.has(a.id)) next.delete(a.id)
+      else next.set(a.id, a)
+      return next
+    })
+  }
+
+  const handleConfirm = async () => {
+    if (selected.size === 0) return
+    setAdding(true)
+    try {
+      const items = Array.from(selected.values()).map(a => ({
+        article: a,
+        price: getPriceForArticle(a),
+      }))
+      await onAdd(items)
+      onClose()
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-[#09090b]">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-[#3f3f46] bg-[#09090b]">
+        <button onClick={onClose} className="p-2 rounded-xl bg-[#18181b] border border-[#3f3f46] text-[#a1a1aa]">
+          <X size={18} />
+        </button>
+        <h2 className="text-base font-bold text-[#fafafa] flex-1">Catalogue articles</h2>
+        {selected.size > 0 && (
+          <button
+            onClick={handleConfirm}
+            disabled={adding}
+            className="px-4 h-9 rounded-xl text-white text-sm font-semibold disabled:opacity-60"
+            style={btnStyle}
+          >
+            {adding ? '...' : `+ ${selected.size} article${selected.size > 1 ? 's' : ''}`}
+          </button>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="px-4 py-3 border-b border-[#3f3f46] bg-[#09090b]">
+        <input
+          placeholder="Rechercher un article..."
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          className="w-full h-10 px-4 bg-[#18181b] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
+          autoFocus
+        />
+      </div>
+
+      {/* Store tabs */}
+      {!loading && allStores.length > 0 && (
+        <div className="flex gap-2 px-4 py-2 overflow-x-auto border-b border-[#3f3f46] bg-[#09090b] flex-shrink-0 scrollbar-none">
+          <button
+            onClick={() => setActiveStore('__all__')}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              activeStore === '__all__' ? 'bg-[#e879f9] text-white' : 'bg-[#18181b] text-[#a1a1aa] border border-[#3f3f46]'
+            }`}
+          >
+            Tous
+          </button>
+          {allStores.map(store => (
+            <button
+              key={store}
+              onClick={() => setActiveStore(store)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                activeStore === store ? 'bg-[#e879f9] text-white' : 'bg-[#18181b] text-[#a1a1aa] border border-[#3f3f46]'
+              }`}
+            >
+              {store}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Articles list */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+        {loading ? (
+          <div className="py-16 text-center text-[#71717a] text-sm">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-16 text-center">
+            <p className="text-3xl mb-2">🔍</p>
+            <p className="text-[#a1a1aa] text-sm">Aucun article trouvé</p>
+          </div>
+        ) : (
+          filtered.map(article => {
+            const price = getPriceForArticle(article)
+            const isSelected = selected.has(article.id)
+            return (
+              <button
+                key={article.id}
+                onClick={() => toggleSelect(article)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors text-left ${
+                  isSelected
+                    ? 'border-[#e879f9] bg-[#e879f9]/10'
+                    : 'border-[#3f3f46] bg-[#18181b] active:bg-[#27272a]'
+                }`}
+              >
+                {/* Checkbox */}
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                  isSelected ? 'border-[#e879f9] bg-[#e879f9]' : 'border-[#3f3f46]'
+                }`}>
+                  {isSelected && <Check size={11} className="text-white" strokeWidth={3} />}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#fafafa] truncate">{article.name}</p>
+                  <p className="text-[10px] text-[#71717a] truncate">
+                    {[article.brand, article.unit].filter(Boolean).join(' · ')}
+                    {activeStore === '__all__' && article.stores.length > 0 && (
+                      <> — {article.stores.join(', ')}</>
+                    )}
+                  </p>
+                </div>
+
+                {/* Price */}
+                {price !== null && (
+                  <span className={`text-sm font-bold flex-shrink-0 ${isSelected ? 'text-[#e879f9]' : 'text-[#fafafa]'}`}>
+                    {price.toFixed(2)} $
+                  </span>
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+
+      {/* Bottom bar when items selected */}
+      {selected.size > 0 && (
+        <div className="px-4 py-4 border-t border-[#3f3f46] bg-[#09090b]">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-[#a1a1aa]">{selected.size} article{selected.size > 1 ? 's' : ''} sélectionné{selected.size > 1 ? 's' : ''}</span>
+            <span className="text-sm font-bold text-[#fafafa]">
+              {Array.from(selected.values()).reduce((s, a) => s + (getPriceForArticle(a) ?? 0), 0).toFixed(2)} $ est.
+            </span>
+          </div>
+          <button
+            onClick={handleConfirm}
+            disabled={adding}
+            className="w-full h-12 rounded-xl text-white font-semibold disabled:opacity-60"
+            style={btnStyle}
+          >
+            {adding ? 'Ajout en cours...' : `Ajouter ${selected.size} article${selected.size > 1 ? 's' : ''} à la liste`}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Sub-list View (leaf list with parent_id)
 // ──────────────────────────────────────────────────────────────────────────────
 function SubListView({
@@ -813,6 +1023,7 @@ function SubListView({
   const [addLoading, setAddLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<GroceryArticle[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showCatalogue, setShowCatalogue] = useState(false)
   const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [editItemId, setEditItemId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -892,6 +1103,17 @@ function SubListView({
       setAddLoading(false)
     }
   }, [list.id, addName, addQty, addPrice, addArticleId, refetch])
+
+  const handleAddFromCatalogue = useCallback(async (items: { article: GroceryArticle; price: number | null }[]) => {
+    for (const { article, price } of items) {
+      await addShoppingItem(list.id, {
+        name: article.name,
+        estimated_price: price,
+        article_id: article.id,
+      })
+    }
+    refetch()
+  }, [list.id, refetch])
 
   const handleToggleCheck = useCallback(async (item: ShoppingItem) => {
     await updateShoppingItem(list.id, item.id, { is_checked: !item.is_checked })
@@ -1138,68 +1360,49 @@ function SubListView({
           </div>
         )}
 
-        {/* Add item form */}
-        <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-4 mb-4">
-          <p className="text-xs font-semibold text-[#a1a1aa] mb-3">Ajouter un article</p>
-          <form onSubmit={handleAddItem} className="space-y-2">
-            {/* Name + autocomplete */}
-            <div className="relative">
-              <div className={`flex items-center gap-2 h-11 px-4 bg-[#27272a] border rounded-xl transition-colors ${addArticleId ? 'border-[#e879f9]' : 'border-[#3f3f46] focus-within:border-[#e879f9]'}`}>
-                {addArticleId && <span className="text-[#e879f9] text-sm">📦</span>}
+        {/* Add item section */}
+        <div className="space-y-2 mb-4">
+          {/* Primary: Open catalogue */}
+          <button
+            onClick={() => setShowCatalogue(true)}
+            className="w-full h-14 rounded-2xl text-white font-semibold flex items-center justify-center gap-2"
+            style={btnStyle}
+          >
+            <span className="text-lg">📦</span>
+            Parcourir le catalogue
+          </button>
+
+          {/* Secondary: manual entry */}
+          <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-3">
+            <p className="text-[10px] font-semibold text-[#71717a] mb-2 uppercase tracking-wider">Article hors catalogue</p>
+            <form onSubmit={handleAddItem} className="flex gap-2">
+              <div className="relative flex-1">
                 <input
-                  placeholder="Nom de l'article (ex: Lait)"
+                  placeholder="Nom de l'article..."
                   value={addName}
                   onChange={e => handleArticleNameChange(e.target.value)}
                   onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  required
-                  className="flex-1 bg-transparent text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none"
+                  className="w-full h-10 px-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
                 />
-                {addArticleId && (
-                  <button type="button" onClick={() => { setAddArticleId(null); setAddPrice('') }} className="text-[#71717a] text-xs">✕</button>
+                {showSuggestions && (
+                  <div className="absolute z-30 top-11 left-0 right-0 bg-[#1c1c1f] border border-[#3f3f46] rounded-xl overflow-hidden shadow-xl">
+                    {suggestions.map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 border-b border-[#27272a] last:border-0 active:bg-[#27272a] text-left"
+                        onMouseDown={() => handleSelectArticle(a)}
+                      >
+                        <span className="text-sm text-[#fafafa] truncate">{a.name}</span>
+                        {a.best_price !== null && (
+                          <span className="text-xs text-[#e879f9] flex-shrink-0">{a.best_price.toFixed(2)} $</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
-              {/* Autocomplete dropdown */}
-              {showSuggestions && (
-                <div className="absolute z-30 top-12 left-0 right-0 bg-[#1c1c1f] border border-[#3f3f46] rounded-xl overflow-hidden shadow-xl">
-                  {suggestions.map(a => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="w-full flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[#27272a] last:border-0 active:bg-[#27272a] text-left"
-                      onMouseDown={() => handleSelectArticle(a)}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm text-[#fafafa] font-medium truncate">{a.name}</p>
-                        <p className="text-[10px] text-[#71717a] truncate">
-                          {[a.brand, a.unit].filter(Boolean).join(' · ')}
-                          {a.stores.length > 0 && ` — ${a.stores.join(', ')}`}
-                        </p>
-                      </div>
-                      {a.best_price !== null && (
-                        <span className="text-xs font-semibold text-[#e879f9] flex-shrink-0">{a.best_price.toFixed(2)} $</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <input
-                placeholder="Quantité (ex: 2x, 500g)"
-                value={addQty}
-                onChange={e => setAddQty(e.target.value)}
-                className="flex-1 h-10 px-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
-              />
-              <input
-                placeholder="Prix est."
-                value={addPrice}
-                onChange={e => setAddPrice(e.target.value)}
-                type="number"
-                min="0"
-                step="0.01"
-                className="w-24 h-10 px-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
-              />
               <button
                 type="submit"
                 disabled={addLoading || !addName.trim()}
@@ -1208,8 +1411,8 @@ function SubListView({
               >
                 {addLoading ? '...' : '+'}
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
 
         {/* Summary footer — uniquement dans une course */}
@@ -1265,6 +1468,15 @@ function SubListView({
           </button>
         )}
       </div>
+
+      {/* Catalogue modal */}
+      {showCatalogue && (
+        <CatalogueModal
+          listStoreName={list.store_name}
+          onAdd={handleAddFromCatalogue}
+          onClose={() => setShowCatalogue(false)}
+        />
+      )}
 
       {/* Edit modal */}
       {showEdit && (

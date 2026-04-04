@@ -356,9 +356,9 @@ ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS article_id UUID REFERENCES g
 -- ON CONFLICT (name, brand) DO NOTHING;
 --
 -- INSERT INTO article_store_prices (article_id, store_name, price, recorded_at)
--- SELECT id, 'Super C', 4.99, '2026-04-04' FROM grocery_articles WHERE name='Lait 2%' AND brand='Lactantia'
+-- SELECT id, 'Super C', 4.99, '2026-04-04'::date FROM grocery_articles WHERE name='Lait 2%' AND brand='Lactantia'
 -- UNION ALL
--- SELECT id, 'Super C', 3.49, '2026-04-04' FROM grocery_articles WHERE name='Pain tranché' AND brand='Wonder'
+-- SELECT id, 'Super C', 3.49, '2026-04-04'::date FROM grocery_articles WHERE name='Pain tranché' AND brand='Wonder'
 -- UNION ALL
--- SELECT id, 'Super C', 6.99, '2026-04-04' FROM grocery_articles WHERE name='Oeufs' AND brand='';
+-- SELECT id, 'Super C', 6.99, '2026-04-04'::date FROM grocery_articles WHERE name='Oeufs' AND brand='';
 -- ============================================================
