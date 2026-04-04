@@ -21,7 +21,7 @@ interface AnalyticsData {
 
 // ─── Courbe : revenus vs dépenses par mois ───────────────────────────────────
 function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
-  const TOP = 20; const H = 130; const BOT = 30
+  const TOP = 28; const H = 120; const BOT = 36
   const totalH = TOP + H + BOT
   const STEP = trend.length > 8 ? 32 : 48
   const PAD = 16
@@ -81,36 +81,40 @@ function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
           const xi = toX(i)
           const yi = toY(t.income)
           const ye = toY(t.expenses)
+          // Afficher le label année uniquement quand il change
+          const showYear = i === 0 || t.month.split('-')[0] !== trend[i-1].month.split('-')[0]
           return (
             <g key={t.month}>
               {/* Ligne verticale mois courant */}
               {isCur && (
-                <line x1={xi} y1={TOP} x2={xi} y2={TOP+H} stroke="#ffffff18" strokeWidth="1.5" strokeDasharray="3,3" />
+                <line x1={xi} y1={TOP} x2={xi} y2={TOP+H} stroke="#ffffff20" strokeWidth="1.5" strokeDasharray="3,3" />
               )}
-              {/* Point revenu */}
-              <circle cx={xi} cy={yi} r={isCur ? 4 : 2.5} fill="#22c55e" stroke="#09090b" strokeWidth="1.5" />
-              {/* Valeur revenu (mois courant seulement) */}
-              {isCur && (
-                <text x={xi} y={yi - 7} textAnchor="middle" fontSize="8" fill="#22c55e" fontWeight="bold">
-                  {fmt(t.income)}
-                </text>
-              )}
-              {/* Point dépense */}
-              <circle cx={xi} cy={ye} r={isCur ? 4 : 2.5} fill="#ef4444" stroke="#09090b" strokeWidth="1.5" />
-              {/* Valeur dépense (mois courant seulement) */}
-              {isCur && (
-                <text x={xi} y={ye - 7} textAnchor="middle" fontSize="8" fill="#ef4444" fontWeight="bold">
-                  {fmt(t.expenses)}
-                </text>
-              )}
+
+              {/* Point + valeur revenu (au-dessus) */}
+              <circle cx={xi} cy={yi} r={isCur ? 4 : 3} fill="#22c55e" stroke="#09090b" strokeWidth="1.5" />
+              <text x={xi} y={yi - 6} textAnchor="middle" fontSize={isCur ? '8.5' : '7.5'}
+                fill="#22c55e" fontWeight={isCur ? 'bold' : 'normal'}>
+                {fmt(t.income)}
+              </text>
+
+              {/* Point + valeur dépense (en dessous du point) */}
+              <circle cx={xi} cy={ye} r={isCur ? 4 : 3} fill="#ef4444" stroke="#09090b" strokeWidth="1.5" />
+              <text x={xi} y={ye + 12} textAnchor="middle" fontSize={isCur ? '8.5' : '7.5'}
+                fill="#ef4444" fontWeight={isCur ? 'bold' : 'normal'}>
+                {fmt(t.expenses)}
+              </text>
+
               {/* Label mois */}
               <text x={xi} y={TOP+H+14} textAnchor="middle" fontSize="8"
-                fill={isCur ? '#fafafa' : '#52525b'} fontWeight={isCur ? 'bold' : 'normal'}>
+                fill={isCur ? '#fafafa' : '#71717a'} fontWeight={isCur ? 'bold' : 'normal'}>
                 {MONTH_SHORT[t.month.split('-')[1]]}
               </text>
-              <text x={xi} y={TOP+H+24} textAnchor="middle" fontSize="7" fill="#3f3f46">
-                {t.month.split('-')[0].slice(2)}
-              </text>
+              {/* Année uniquement quand elle change */}
+              {showYear && (
+                <text x={xi} y={TOP+H+24} textAnchor="middle" fontSize="7" fill="#52525b">
+                  {t.month.split('-')[0]}
+                </text>
+              )}
             </g>
           )
         })}
