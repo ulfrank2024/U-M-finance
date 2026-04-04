@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, use, Suspense } from 'react'
+import { useState, useEffect, useCallback, use, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Pencil, Check, X, CalendarDays, Settings2, Plus } from 'lucide-react'
@@ -13,8 +13,9 @@ import {
   deleteShoppingList,
   duplicateShoppingList,
   fetchShoppingLists,
+  searchGroceryArticles,
 } from '@/lib/api'
-import type { ShoppingList, ShoppingItem, Category } from '@/lib/types'
+import type { ShoppingList, ShoppingItem, Category, GroceryArticle } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
 import Avatar from '@/components/ui/Avatar'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -807,7 +808,12 @@ function SubListView({
   const router = useRouter()
   const [addName, setAddName] = useState('')
   const [addQty, setAddQty] = useState('')
+  const [addPrice, setAddPrice] = useState('')
+  const [addArticleId, setAddArticleId] = useState<string | null>(null)
   const [addLoading, setAddLoading] = useState(false)
+  const [suggestions, setSuggestions] = useState<GroceryArticle[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [editItemId, setEditItemId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editQty, setEditQty] = useState('')
@@ -842,22 +848,50 @@ function SubListView({
     }
   }, [allChecked, list.status])
 
+  const handleArticleNameChange = useCallback((val: string) => {
+    setAddName(val)
+    setAddArticleId(null)
+    setAddPrice('')
+    if (suggestTimer.current) clearTimeout(suggestTimer.current)
+    if (val.length < 2) { setSuggestions([]); setShowSuggestions(false); return }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchGroceryArticles(val, list.store_name || '')
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+      } catch { /* ignore */ }
+    }, 300)
+  }, [list.store_name])
+
+  const handleSelectArticle = useCallback((article: GroceryArticle) => {
+    setAddName(article.name)
+    setAddArticleId(article.id)
+    if (article.best_price !== null) setAddPrice(String(article.best_price))
+    setSuggestions([])
+    setShowSuggestions(false)
+  }, [])
+
   const handleAddItem = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     if (!addName.trim()) return
     setAddLoading(true)
     try {
+      const price = addPrice ? parseFloat(addPrice) : null
       await addShoppingItem(list.id, {
         name: addName.trim(),
         quantity: addQty.trim() || undefined,
+        estimated_price: price && !isNaN(price) ? price : null,
+        article_id: addArticleId || null,
       })
       setAddName('')
       setAddQty('')
+      setAddPrice('')
+      setAddArticleId(null)
       refetch()
     } finally {
       setAddLoading(false)
     }
-  }, [list.id, addName, addQty, refetch])
+  }, [list.id, addName, addQty, addPrice, addArticleId, refetch])
 
   const handleToggleCheck = useCallback(async (item: ShoppingItem) => {
     await updateShoppingItem(list.id, item.id, { is_checked: !item.is_checked })
@@ -1108,13 +1142,48 @@ function SubListView({
         <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-4 mb-4">
           <p className="text-xs font-semibold text-[#a1a1aa] mb-3">Ajouter un article</p>
           <form onSubmit={handleAddItem} className="space-y-2">
-            <input
-              placeholder="Nom de l'article (ex: Lait)"
-              value={addName}
-              onChange={e => setAddName(e.target.value)}
-              required
-              className="w-full h-11 px-4 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
-            />
+            {/* Name + autocomplete */}
+            <div className="relative">
+              <div className={`flex items-center gap-2 h-11 px-4 bg-[#27272a] border rounded-xl transition-colors ${addArticleId ? 'border-[#e879f9]' : 'border-[#3f3f46] focus-within:border-[#e879f9]'}`}>
+                {addArticleId && <span className="text-[#e879f9] text-sm">📦</span>}
+                <input
+                  placeholder="Nom de l'article (ex: Lait)"
+                  value={addName}
+                  onChange={e => handleArticleNameChange(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  required
+                  className="flex-1 bg-transparent text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none"
+                />
+                {addArticleId && (
+                  <button type="button" onClick={() => { setAddArticleId(null); setAddPrice('') }} className="text-[#71717a] text-xs">✕</button>
+                )}
+              </div>
+              {/* Autocomplete dropdown */}
+              {showSuggestions && (
+                <div className="absolute z-30 top-12 left-0 right-0 bg-[#1c1c1f] border border-[#3f3f46] rounded-xl overflow-hidden shadow-xl">
+                  {suggestions.map(a => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="w-full flex items-center justify-between gap-2 px-4 py-2.5 border-b border-[#27272a] last:border-0 active:bg-[#27272a] text-left"
+                      onMouseDown={() => handleSelectArticle(a)}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm text-[#fafafa] font-medium truncate">{a.name}</p>
+                        <p className="text-[10px] text-[#71717a] truncate">
+                          {[a.brand, a.unit].filter(Boolean).join(' · ')}
+                          {a.stores.length > 0 && ` — ${a.stores.join(', ')}`}
+                        </p>
+                      </div>
+                      {a.best_price !== null && (
+                        <span className="text-xs font-semibold text-[#e879f9] flex-shrink-0">{a.best_price.toFixed(2)} $</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2">
               <input
                 placeholder="Quantité (ex: 2x, 500g)"
@@ -1122,36 +1191,61 @@ function SubListView({
                 onChange={e => setAddQty(e.target.value)}
                 className="flex-1 h-10 px-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
               />
+              <input
+                placeholder="Prix est."
+                value={addPrice}
+                onChange={e => setAddPrice(e.target.value)}
+                type="number"
+                min="0"
+                step="0.01"
+                className="w-24 h-10 px-3 bg-[#27272a] border border-[#3f3f46] rounded-xl text-[#fafafa] placeholder:text-[#71717a] text-sm focus:outline-none focus:border-[#e879f9]"
+              />
               <button
                 type="submit"
                 disabled={addLoading || !addName.trim()}
-                className="px-5 h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex-shrink-0"
+                className="px-4 h-10 rounded-xl text-white text-sm font-semibold disabled:opacity-50 flex-shrink-0"
                 style={btnStyle}
               >
-                {addLoading ? '...' : '+ Ajouter'}
+                {addLoading ? '...' : '+'}
               </button>
             </div>
           </form>
         </div>
 
         {/* Summary footer — uniquement dans une course */}
-        {!backHref && items.length > 0 && (
-          <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-4">
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-[#a1a1aa]">{checked.length} / {items.length} article{items.length > 1 ? 's' : ''} cochés</span>
-              <span className="text-xs text-[#71717a]">{Math.round((checked.length / items.length) * 100)}%</span>
+        {!backHref && items.length > 0 && (() => {
+          const estimatedTotal = items.reduce((s, i) => s + (i.estimated_price ? Number(i.estimated_price) : 0), 0)
+          const checkedTotal = checked.reduce((s, i) => s + (i.estimated_price ? Number(i.estimated_price) : 0), 0)
+          const hasEstimates = estimatedTotal > 0
+          return (
+            <div className="bg-[#18181b] border border-[#3f3f46] rounded-2xl p-4">
+              <div className="flex items-center justify-between text-sm mb-3">
+                <span className="text-[#a1a1aa]">{checked.length} / {items.length} article{items.length > 1 ? 's' : ''} cochés</span>
+                <span className="text-xs text-[#71717a]">{Math.round((checked.length / items.length) * 100)}%</span>
+              </div>
+              <div className="h-2 bg-[#3f3f46] rounded-full overflow-hidden mb-3">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.round((checked.length / items.length) * 100)}%`,
+                    background: 'linear-gradient(90deg, #e879f9, #818cf8)',
+                  }}
+                />
+              </div>
+              {hasEstimates && (
+                <div className="flex items-center justify-between pt-2 border-t border-[#27272a]">
+                  <span className="text-xs text-[#71717a]">Estimation liste</span>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-[#fafafa]">{estimatedTotal.toFixed(2)} $</p>
+                    {checkedTotal > 0 && (
+                      <p className="text-[10px] text-[#71717a]">Cochés : {checkedTotal.toFixed(2)} $</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="h-2 bg-[#3f3f46] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${Math.round((checked.length / items.length) * 100)}%`,
-                  background: 'linear-gradient(90deg, #e879f9, #818cf8)',
-                }}
-              />
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Duplicate success toast */}
         {duplicateSuccess && (

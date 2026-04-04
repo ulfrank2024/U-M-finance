@@ -11,7 +11,7 @@ export async function POST(
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
-  const { name, quantity, estimated_price } = await request.json()
+  const { name, quantity, estimated_price, article_id } = await request.json()
   if (!name) return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 })
 
   const { data, error } = await supabase
@@ -21,6 +21,7 @@ export async function POST(
       name,
       quantity: quantity || null,
       estimated_price: estimated_price ?? null,
+      article_id: article_id || null,
       added_by: user.id,
     })
     .select(`

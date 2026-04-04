@@ -106,8 +106,12 @@ export const updateShoppingList = (id: string, data: Partial<Pick<ShoppingList, 
   req<ShoppingList>(`/api/shopping-lists/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteShoppingList = (id: string) =>
   req<void>(`/api/shopping-lists/${id}`, { method: 'DELETE' })
-export const addShoppingItem = (listId: string, data: { name: string; quantity?: string; estimated_price?: number | null }) =>
+export const addShoppingItem = (listId: string, data: { name: string; quantity?: string; estimated_price?: number | null; article_id?: string | null }) =>
   req<ShoppingItem>(`/api/shopping-lists/${listId}/items`, { method: 'POST', body: JSON.stringify(data) })
+export const searchGroceryArticles = (q: string, store?: string) =>
+  req<import('./types').GroceryArticle[]>(`/api/grocery-articles?q=${encodeURIComponent(q)}${store ? `&store=${encodeURIComponent(store)}` : ''}`)
+export const createGroceryArticle = (data: { name: string; brand?: string; unit?: string }) =>
+  req<import('./types').GroceryArticle>('/api/grocery-articles', { method: 'POST', body: JSON.stringify(data) })
 export const updateShoppingItem = (listId: string, itemId: string, data: { name?: string; quantity?: string | null; estimated_price?: number | null; actual_price?: number | null; is_checked?: boolean }) =>
   req<ShoppingItem>(`/api/shopping-lists/${listId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteShoppingItem = (listId: string, itemId: string) =>

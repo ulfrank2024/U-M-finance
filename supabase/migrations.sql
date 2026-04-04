@@ -301,3 +301,64 @@ CREATE POLICY "transfers_policy" ON transfers
 ALTER TABLE transfers
   ADD COLUMN IF NOT EXISTS tx_from_id UUID,
   ADD COLUMN IF NOT EXISTS tx_to_id   UUID;
+
+
+-- ============================================================
+-- Migration 014 — Catalogue articles épicerie
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS grocery_articles (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       TEXT NOT NULL,
+  brand      TEXT NOT NULL DEFAULT '',
+  unit       TEXT NOT NULL DEFAULT 'unité',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(name, brand)
+);
+
+ALTER TABLE grocery_articles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "grocery_articles_policy" ON grocery_articles;
+CREATE POLICY "grocery_articles_policy" ON grocery_articles
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE TABLE IF NOT EXISTS article_store_prices (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  article_id  UUID NOT NULL REFERENCES grocery_articles(id) ON DELETE CASCADE,
+  store_name  TEXT NOT NULL,
+  price       DECIMAL(10,2) NOT NULL,
+  recorded_at DATE DEFAULT CURRENT_DATE,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE article_store_prices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "article_store_prices_policy" ON article_store_prices;
+CREATE POLICY "article_store_prices_policy" ON article_store_prices
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Lier un article du catalogue à un item de liste de courses
+ALTER TABLE shopping_items ADD COLUMN IF NOT EXISTS article_id UUID REFERENCES grocery_articles(id) ON DELETE SET NULL;
+
+
+-- ============================================================
+-- FORMAT SQL POUR GEMINI (factures d'épicerie)
+-- ============================================================
+-- Instructions à donner à Gemini :
+--   "Lis cette facture et génère le SQL suivant.
+--    Remplace MAGASIN et DATE (format AAAA-MM-JJ).
+--    Pour chaque article : name = nom générique, brand = marque
+--    (vide '' si aucune), unit = unité/format (ex: '2L','kg','').
+--    Ne génère que les deux blocs INSERT ci-dessous."
+--
+-- INSERT INTO grocery_articles (name, brand, unit) VALUES
+--   ('Lait 2%', 'Lactantia', '2L'),
+--   ('Pain tranché', 'Wonder', ''),
+--   ('Oeufs', '', 'dz')
+-- ON CONFLICT (name, brand) DO NOTHING;
+--
+-- INSERT INTO article_store_prices (article_id, store_name, price, recorded_at)
+-- SELECT id, 'Super C', 4.99, '2026-04-04' FROM grocery_articles WHERE name='Lait 2%' AND brand='Lactantia'
+-- UNION ALL
+-- SELECT id, 'Super C', 3.49, '2026-04-04' FROM grocery_articles WHERE name='Pain tranché' AND brand='Wonder'
+-- UNION ALL
+-- SELECT id, 'Super C', 6.99, '2026-04-04' FROM grocery_articles WHERE name='Oeufs' AND brand='';
+-- ============================================================

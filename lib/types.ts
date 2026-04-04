@@ -248,7 +248,17 @@ export interface ShoppingItem {
   checked_at: string | null
   added_by: string | null
   added_by_profile?: { id: string; display_name: string | null; avatar_color: string | null } | null
+  article_id: string | null
   created_at: string
+}
+
+export interface GroceryArticle {
+  id: string
+  name: string
+  brand: string
+  unit: string
+  best_price: number | null
+  stores: string[]
 }
 
 export interface Transfer {
