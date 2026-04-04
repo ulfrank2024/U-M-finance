@@ -21,11 +21,11 @@ interface AnalyticsData {
 
 // ─── Courbe : revenus vs dépenses par mois ───────────────────────────────────
 function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
-  const TOP = 28; const H = 120; const BOT = 36
+  const TOP = 32; const H = 130; const BOT = 38
+  const STEP = 60  // espacement fixe large pour lisibilité
+  const PAD  = 24
+  const totalW = PAD + (trend.length - 1) * STEP + PAD
   const totalH = TOP + H + BOT
-  const STEP = trend.length > 8 ? 32 : 48
-  const PAD = 16
-  const totalW = (trend.length - 1) * STEP + PAD * 2
 
   const maxVal = Math.max(...trend.map(t => Math.max(t.income, t.expenses)), 1)
   const toX = (i: number) => PAD + i * STEP
@@ -34,84 +34,91 @@ function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
   const now = new Date()
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const incPts  = trend.map((t, i) => ({ x: toX(i), y: toY(t.income),   v: t.income,   m: t.month }))
-  const expPts  = trend.map((t, i) => ({ x: toX(i), y: toY(t.expenses), v: t.expenses, m: t.month }))
+  const incPts = trend.map((t, i) => ({ x: toX(i), y: toY(t.income),   v: t.income,   m: t.month }))
+  const expPts = trend.map((t, i) => ({ x: toX(i), y: toY(t.expenses), v: t.expenses, m: t.month }))
 
-  const polyInc = incPts.map(p => `${p.x},${p.y}`).join(' ')
-  const polyExp = expPts.map(p => `${p.x},${p.y}`).join(' ')
-
-  // Zone remplie sous chaque courbe
   const areaInc = `M ${incPts[0].x},${TOP+H} ${incPts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${incPts[incPts.length-1].x},${TOP+H} Z`
   const areaExp = `M ${expPts[0].x},${TOP+H} ${expPts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${expPts[expPts.length-1].x},${TOP+H} Z`
 
-  const fmt = (v: number) => v >= 1000 ? `${(v/1000).toFixed(1).replace('.0','')}k` : `${Math.round(v)}`
+  // Format court avec $ et unité k
+  const fmt = (v: number) =>
+    v >= 1000
+      ? `${(v / 1000).toFixed(1).replace('.0', '')}k $`
+      : `${Math.round(v)} $`
+
+  // Largeur min pour scroll horizontal
+  const minW = Math.max(380, trend.length * 60 + 48)
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg width="100%" viewBox={`0 0 ${totalW} ${totalH}`} className="min-w-[300px]">
+    <div className="w-full overflow-x-auto -mx-1 px-1">
+      <svg viewBox={`0 0 ${totalW} ${totalH}`} style={{ minWidth: minW, width: '100%' }}>
         <defs>
-          <linearGradient id="areaInc" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3"/>
+          <linearGradient id="lgInc" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22c55e" stopOpacity="0.35"/>
             <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02"/>
           </linearGradient>
-          <linearGradient id="areaExp" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.25"/>
+          <linearGradient id="lgExp" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.28"/>
             <stop offset="100%" stopColor="#ef4444" stopOpacity="0.02"/>
           </linearGradient>
         </defs>
 
-        {/* Grille horizontale */}
+        {/* Grille */}
         {[0.25, 0.5, 0.75, 1].map(p => (
-          <line key={p} x1={PAD} y1={TOP + H - p*H} x2={totalW - PAD} y2={TOP + H - p*H}
+          <line key={p} x1={PAD} y1={TOP + H*(1-p)} x2={totalW-PAD} y2={TOP + H*(1-p)}
             stroke="#27272a" strokeWidth="0.8" strokeDasharray="4,4" />
         ))}
 
-        {/* Zones remplies */}
-        <path d={areaExp} fill="url(#areaExp)" />
-        <path d={areaInc} fill="url(#areaInc)" />
+        {/* Aires */}
+        <path d={areaExp} fill="url(#lgExp)" />
+        <path d={areaInc} fill="url(#lgInc)" />
 
-        {/* Courbe dépenses */}
-        <polyline points={polyExp} fill="none" stroke="#ef4444" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {/* Courbe revenus */}
-        <polyline points={polyInc} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {/* Courbes */}
+        <polyline points={expPts.map(p=>`${p.x},${p.y}`).join(' ')}
+          fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinejoin="round" />
+        <polyline points={incPts.map(p=>`${p.x},${p.y}`).join(' ')}
+          fill="none" stroke="#22c55e" strokeWidth="2.2" strokeLinejoin="round" />
 
-        {/* Points + labels */}
+        {/* Points, valeurs, labels */}
         {trend.map((t, i) => {
           const isCur = t.month === currentMonth
-          const xi = toX(i)
-          const yi = toY(t.income)
-          const ye = toY(t.expenses)
-          // Afficher le label année uniquement quand il change
+          const xi  = toX(i)
+          const yi  = toY(t.income)
+          const ye  = toY(t.expenses)
           const showYear = i === 0 || t.month.split('-')[0] !== trend[i-1].month.split('-')[0]
+          const lblInc = fmt(t.income)
+          const lblExp = fmt(t.expenses)
+          const lblW   = 32  // largeur estimée du fond
+
           return (
             <g key={t.month}>
               {/* Ligne verticale mois courant */}
-              {isCur && (
-                <line x1={xi} y1={TOP} x2={xi} y2={TOP+H} stroke="#ffffff20" strokeWidth="1.5" strokeDasharray="3,3" />
-              )}
+              {isCur && <line x1={xi} y1={TOP} x2={xi} y2={TOP+H} stroke="#ffffff18" strokeWidth="1.5" strokeDasharray="4,3" />}
 
-              {/* Point + valeur revenu (au-dessus) */}
-              <circle cx={xi} cy={yi} r={isCur ? 4 : 3} fill="#22c55e" stroke="#09090b" strokeWidth="1.5" />
-              <text x={xi} y={yi - 6} textAnchor="middle" fontSize={isCur ? '8.5' : '7.5'}
+              {/* ── Revenu : valeur AU-DESSUS ── */}
+              {/* Fond opaque pour lisibilité */}
+              <rect x={xi - lblW/2} y={yi - 20} width={lblW} height={13} rx={3} fill="#09090b" opacity="0.8" />
+              <text x={xi} y={yi - 10} textAnchor="middle" fontSize="9"
                 fill="#22c55e" fontWeight={isCur ? 'bold' : 'normal'}>
-                {fmt(t.income)}
+                {lblInc}
               </text>
+              <circle cx={xi} cy={yi} r={isCur ? 4.5 : 3} fill="#22c55e" stroke="#09090b" strokeWidth="1.5" />
 
-              {/* Point + valeur dépense (en dessous du point) */}
-              <circle cx={xi} cy={ye} r={isCur ? 4 : 3} fill="#ef4444" stroke="#09090b" strokeWidth="1.5" />
-              <text x={xi} y={ye + 12} textAnchor="middle" fontSize={isCur ? '8.5' : '7.5'}
+              {/* ── Dépense : valeur EN-DESSOUS ── */}
+              <circle cx={xi} cy={ye} r={isCur ? 4.5 : 3} fill="#ef4444" stroke="#09090b" strokeWidth="1.5" />
+              <rect x={xi - lblW/2} y={ye + 7} width={lblW} height={13} rx={3} fill="#09090b" opacity="0.8" />
+              <text x={xi} y={ye + 17} textAnchor="middle" fontSize="9"
                 fill="#ef4444" fontWeight={isCur ? 'bold' : 'normal'}>
-                {fmt(t.expenses)}
+                {lblExp}
               </text>
 
               {/* Label mois */}
-              <text x={xi} y={TOP+H+14} textAnchor="middle" fontSize="8"
+              <text x={xi} y={TOP+H+16} textAnchor="middle" fontSize="9"
                 fill={isCur ? '#fafafa' : '#71717a'} fontWeight={isCur ? 'bold' : 'normal'}>
                 {MONTH_SHORT[t.month.split('-')[1]]}
               </text>
-              {/* Année uniquement quand elle change */}
               {showYear && (
-                <text x={xi} y={TOP+H+24} textAnchor="middle" fontSize="7" fill="#52525b">
+                <text x={xi} y={TOP+H+27} textAnchor="middle" fontSize="7.5" fill="#3f3f46">
                   {t.month.split('-')[0]}
                 </text>
               )}
@@ -120,15 +127,15 @@ function LineChart({ trend }: { trend: AnalyticsData['trend'] }) {
         })}
 
         {/* Ligne de base */}
-        <line x1={PAD} y1={TOP+H} x2={totalW-PAD} y2={TOP+H} stroke="#3f3f46" strokeWidth="1" />
+        <line x1={PAD} y1={TOP+H} x2={totalW-PAD} y2={TOP+H} stroke="#3f3f46" strokeWidth="1.2" />
       </svg>
 
-      <div className="flex items-center gap-5 justify-center mt-2">
-        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]">
-          <span className="w-6 h-0.5 bg-[#22c55e] inline-block rounded-full"/>Revenus
+      <div className="flex items-center gap-6 justify-center mt-3">
+        <span className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
+          <span className="w-6 h-0.5 bg-[#22c55e] inline-block rounded-full" />Revenus
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] text-[#a1a1aa]">
-          <span className="w-6 h-0.5 bg-[#ef4444] inline-block rounded-full"/>Dépenses
+        <span className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
+          <span className="w-6 h-0.5 bg-[#ef4444] inline-block rounded-full" />Dépenses
         </span>
       </div>
     </div>
@@ -140,33 +147,53 @@ function SavingsLineChart({ trend }: { trend: AnalyticsData['trend'] }) {
   const vals = trend.map(t => t.savings)
   const minVal = Math.min(...vals); const maxVal = Math.max(...vals)
   const range = maxVal - minVal || 1
-  const H = 100; const STEP = trend.length > 8 ? 28 : 40; const totalW = (trend.length - 1) * STEP + 20
-  const toY = (v: number) => H - 10 - ((v - minVal) / range) * (H - 20)
-  const toX = (i: number) => i * STEP + 10
+  const TOP = 28; const H = 100; const BOT = 30
+  const STEP = 60; const PAD = 20
+  const totalW = PAD + (trend.length - 1) * STEP + PAD
+  const totalH = TOP + H + BOT
+  const toY = (v: number) => TOP + H - ((v - minVal) / range) * H
+  const toX = (i: number) => PAD + i * STEP
   const pts = trend.map((t, i) => ({ x: toX(i), y: toY(t.savings), v: t.savings, m: t.month }))
-  const area = `M ${pts[0].x},${H} ${pts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${pts[pts.length-1].x},${H} Z`
+  const area = `M ${pts[0].x},${TOP+H} ${pts.map(p=>`L ${p.x},${p.y}`).join(' ')} L ${pts[pts.length-1].x},${TOP+H} Z`
+  const fmt = (v: number) => (v >= 0 ? '+' : '') + (Math.abs(v) >= 1000 ? `${(v/1000).toFixed(1).replace('.0','')}k $` : `${Math.round(v)} $`)
+  const minW = Math.max(300, trend.length * 60 + 40)
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg width="100%" viewBox={`0 0 ${totalW+20} ${H+20}`} className="min-w-[260px]">
+    <div className="w-full overflow-x-auto -mx-1 px-1">
+      <svg viewBox={`0 0 ${totalW} ${totalH}`} style={{ minWidth: minW, width: '100%' }}>
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#818cf8" stopOpacity="0.4"/>
+            <stop offset="100%" stopColor="#818cf8" stopOpacity="0.02"/>
+          </linearGradient>
+        </defs>
         {minVal < 0 && maxVal > 0 && (
-          <line x1={0} y1={toY(0)} x2={totalW+20} y2={toY(0)} stroke="#3f3f46" strokeWidth="1" strokeDasharray="4,2" />
+          <line x1={PAD} y1={toY(0)} x2={totalW-PAD} y2={toY(0)} stroke="#3f3f46" strokeWidth="1" strokeDasharray="4,2" />
         )}
-        <path d={area} fill="url(#sg)" opacity="0.25" />
-        <polyline points={pts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round" />
+        <path d={area} fill="url(#sg)" opacity="0.35" />
+        <polyline points={pts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke="#818cf8" strokeWidth="2.2" strokeLinejoin="round" />
+        {pts.map((p,i) => {
+          const lbl = fmt(p.v)
+          const lblW = 38
+          // valeur au-dessus si positif, en dessous si négatif
+          const valY = p.v >= 0 ? p.y - 8 : p.y + 18
+          const rectY = p.v >= 0 ? p.y - 21 : p.y + 7
+          return (
+            <g key={i}>
+              <rect x={p.x - lblW/2} y={rectY} width={lblW} height={13} rx={3} fill="#09090b" opacity="0.85" />
+              <text x={p.x} y={valY} textAnchor="middle" fontSize="9"
+                fill={p.v >= 0 ? '#22c55e' : '#ef4444'} fontWeight="bold">
+                {lbl}
+              </text>
+              <circle cx={p.x} cy={p.y} r={3.5} fill={p.v>=0?'#22c55e':'#ef4444'} stroke="#09090b" strokeWidth="1.5" />
+            </g>
+          )
+        })}
         {pts.map((p,i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={3} fill={p.v>=0?'#22c55e':'#ef4444'} stroke="#09090b" strokeWidth="1.5" />
-        ))}
-        {pts.map((p,i) => (
-          <text key={i} x={p.x} y={H+14} textAnchor="middle" fontSize="8" fill="#52525b">
+          <text key={i} x={p.x} y={TOP+H+16} textAnchor="middle" fontSize="8.5" fill="#52525b">
             {MONTH_SHORT[p.m.split('-')[1]]}
           </text>
         ))}
-        <defs>
-          <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818cf8"/><stop offset="100%" stopColor="#818cf800"/>
-          </linearGradient>
-        </defs>
       </svg>
     </div>
   )
