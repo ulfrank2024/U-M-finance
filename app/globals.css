@@ -24,6 +24,7 @@ body {
   font-family: var(--font-geist-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 input, textarea, select {
@@ -34,7 +35,10 @@ input, textarea, select {
   padding: 0.75rem 1rem;
   width: 100%;
   outline: none;
-  font-size: 1rem;
+  font-size: 1rem; /* >= 16px empêche le zoom iOS */
+  touch-action: manipulation;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 input:focus, textarea:focus, select:focus {
