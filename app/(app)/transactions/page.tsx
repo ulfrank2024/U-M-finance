@@ -138,27 +138,27 @@ export default function TransactionsPage() {
         <MonthPicker value={month} onChange={setMonth} />
       </div>
 
-      {/* Recherche + Scanner */}
-      <div className="flex gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="Rechercher..."
-            className="w-full pl-9 pr-4 py-2.5 bg-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder-[#71717a] border border-[#3f3f46] focus:outline-none focus:border-[#e879f9]"
-          />
-        </div>
-        <button
-          onClick={() => setShowScan(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-sm font-medium shrink-0"
-          style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
-        >
-          <ScanLine size={16} />
-          Scan
-        </button>
+      {/* Recherche */}
+      <div className="relative mb-3">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          placeholder="Rechercher une transaction..."
+          className="w-full pl-9 pr-4 py-2.5 bg-[#27272a] rounded-xl text-sm text-[#fafafa] placeholder-[#71717a] border border-[#3f3f46] focus:outline-none focus:border-[#e879f9]"
+        />
       </div>
+
+      {/* FAB Scanner — fixe en bas à droite, au-dessus du menu mobile */}
+      <button
+        onClick={() => setShowScan(true)}
+        className="md:hidden fixed bottom-20 right-4 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl shadow-fuchsia-500/30"
+        style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
+      >
+        <ScanLine size={18} />
+        Scanner
+      </button>
 
       {/* Filtre QUI */}
       <div className="flex gap-2 mb-3">
