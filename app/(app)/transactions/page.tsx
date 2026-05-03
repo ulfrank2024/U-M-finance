@@ -1,17 +1,18 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Trash2, Search, Zap } from 'lucide-react'
+import { Trash2, Search, Zap, ScanLine } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatDate, formatCurrency, groupByDate } from '@/lib/utils'
 import { deleteTransaction } from '@/lib/api'
-import type { Transaction, Profile, CardPaymentListItem } from '@/lib/types'
+import type { Transaction, Profile, CardPaymentListItem, Category, BankAccount } from '@/lib/types'
 import TransactionCard from '@/components/TransactionCard'
 import Avatar from '@/components/ui/Avatar'
 import MonthPicker from '@/components/ui/MonthPicker'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
+import ScanReceiptModal from '@/components/ScanReceiptModal'
 
 type Filter = 'all' | 'income' | 'expense' | 'personal' | 'common' | 'shared' | 'recurring'
 
@@ -35,6 +36,10 @@ export default function TransactionsPage() {
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [showScan, setShowScan] = useState(false)
+
+  const { data: categories } = useFetch<Category[]>('/api/categories')
+  const { data: bankAccounts } = useFetch<BankAccount[]>('/api/bank-accounts?mine=true')
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchInput), 300)
@@ -130,7 +135,17 @@ export default function TransactionsPage() {
             Live
           </span>
         </h1>
-        <MonthPicker value={month} onChange={setMonth} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowScan(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-medium shadow-md shadow-fuchsia-500/20"
+            style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }}
+          >
+            <ScanLine size={14} />
+            Scanner
+          </button>
+          <MonthPicker value={month} onChange={setMonth} />
+        </div>
       </div>
 
       {/* Recherche */}
@@ -325,6 +340,14 @@ export default function TransactionsPage() {
         }}
         onCancel={() => setPendingDelete(null)}
       />
+      {showScan && (
+        <ScanReceiptModal
+          onClose={() => setShowScan(false)}
+          onSuccess={() => { refetch() }}
+          bankAccounts={bankAccounts || []}
+          categories={categories || []}
+        />
+      )}
     </div>
   )
 }
