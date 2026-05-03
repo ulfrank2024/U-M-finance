@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const anthropic = new Anthropic({
-  authToken: process.env.ANTHROPIC_AUTH_TOKEN,
-})
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -17,22 +15,11 @@ export async function POST(request: NextRequest) {
 
   const buffer = await file.arrayBuffer()
   const base64 = Buffer.from(buffer).toString('base64')
-  const mediaType = (file.type || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp'
+  const mimeType = (file.type || 'image/jpeg')
 
-  const message = await anthropic.messages.create({
-    model: 'claude-opus-4-7',
-    max_tokens: 2048,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mediaType, data: base64 },
-          },
-          {
-            type: 'text',
-            text: `Analyse ce reçu/ticket de caisse et retourne un JSON structuré.
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+
+  const prompt = `Analyse ce reçu/ticket de caisse et retourne un JSON structuré.
 
 Retourne UNIQUEMENT un objet JSON valide sans markdown ni backticks, avec cette structure exacte:
 {
@@ -54,19 +41,22 @@ Retourne UNIQUEMENT un objet JSON valide sans markdown ni backticks, avec cette 
 Règles:
 - "date": date du reçu au format YYYY-MM-DD, sinon date du jour
 - "currency": devise (CAD si non précisée)
-- "total": montant total payé (cherche "TOTAL", "TOTAL DÛ", "MONTANT DÛ", etc.)
-- "items": chaque article acheté avec son prix unitaire
-- Si la quantité est > 1, divise le prix total de la ligne par la quantité pour avoir unit_price
-- Pour "unit": utilise "kg" pour poids, "L" pour liquide, "unité" par défaut
+- "total": montant total payé (cherche TOTAL, TOTAL DÛ, MONTANT DÛ, etc.)
+- "items": chaque article avec son prix unitaire
+- Si quantité > 1, divise le prix total de la ligne par la quantité pour unit_price
+- "unit": kg pour poids, L pour liquide, unité par défaut
 - Ignore taxes, sous-totaux, remises globales, points/milles
-- Ne retourne aucun texte hors du JSON`,
-          },
-        ],
-      },
-    ],
-  })
+- Ne retourne aucun texte hors du JSON`
 
-  const raw = (message.content[0] as { type: string; text: string }).text.trim()
+  const result = await model.generateContent([
+    { inlineData: { mimeType, data: base64 } },
+    prompt,
+  ])
+
+  const raw = result.response.text().trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
 
   try {
     const parsed = JSON.parse(raw)
