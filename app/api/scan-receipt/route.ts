@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const base64 = Buffer.from(buffer).toString('base64')
   const mimeType = (file.type || 'image/jpeg')
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const prompt = `Analyse ce reçu/ticket de caisse et retourne un JSON structuré.
 
