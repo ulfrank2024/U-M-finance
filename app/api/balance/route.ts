@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
   if (month) {
     const [year, m] = month.split('-').map(Number)
     dateFilter = {
-      start: `${month}-01`,
-      end:   new Date(year, m, 0).toISOString().split('T')[0],
+      start: `${month}-01T00:00:00.000Z`,
+      end:   new Date(Date.UTC(year, m, 0, 23, 59, 59, 999)).toISOString(),
     }
   }
 

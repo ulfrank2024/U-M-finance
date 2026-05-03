@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   let dateEnd:   string | null = null
   if (month) {
     const [year, m] = month.split('-').map(Number)
-    dateStart = `${month}-01`
-    dateEnd   = new Date(year, m, 0).toISOString().split('T')[0]
+    dateStart = `${month}-01T00:00:00.000Z`
+    dateEnd   = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999)).toISOString()
   }
 
   let q = supabase
