@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import Anthropic from '@anthropic-ai/sdk'
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY!
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const PROMPT = `Analyse ce reçu/ticket de caisse et retourne un JSON structuré.
 
@@ -44,32 +44,21 @@ export async function POST(request: NextRequest) {
 
   const buffer = await file.arrayBuffer()
   const base64 = Buffer.from(buffer).toString('base64')
-  const mimeType = file.type || 'image/jpeg'
+  const mediaType = (file.type || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp'
 
-  const body = {
-    contents: [{
-      parts: [
-        { inline_data: { mime_type: mimeType, data: base64 } },
-        { text: PROMPT },
+  const message = await anthropic.messages.create({
+    model: 'claude-opus-4-7',
+    max_tokens: 2048,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: PROMPT },
       ],
     }],
-    generationConfig: { temperature: 0.1 },
-  }
-
-  const res = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
   })
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    console.error('Gemini error:', res.status, JSON.stringify(err))
-    return NextResponse.json({ error: `Gemini ${res.status}: ${JSON.stringify(err)}` }, { status: 502 })
-  }
-
-  const data = await res.json()
-  const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text || '')
+  const raw = (message.content[0] as { type: string; text: string }).text
     .trim()
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
