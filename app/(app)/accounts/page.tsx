@@ -1,11 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { Plus, Pencil, X, CreditCard, Wallet } from 'lucide-react'
+import { Plus, Pencil, X, CreditCard, Wallet, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useFetch } from '@/hooks/useFetch'
 import { createBankAccount, updateBankAccount, deleteBankAccount } from '@/lib/api'
 import { formatCurrency, formatMonth } from '@/lib/utils'
-import type { BankAccount, Profile } from '@/lib/types'
+import type { BankAccount, Profile, BalanceResponse } from '@/lib/types'
 import Avatar from '@/components/ui/Avatar'
 import EmptyState from '@/components/ui/EmptyState'
 import ConfirmModal from '@/components/ui/ConfirmModal'
@@ -17,6 +17,7 @@ export default function AccountsPage() {
   const [month, setMonth] = useState(() => formatMonth(new Date()))
   const { data: accounts, loading, refetch } = useFetch<BankAccount[]>(`/api/bank-accounts?month=${month}`)
   const { data: me } = useFetch<Profile>('/api/profile')
+  const { data: balanceData } = useFetch<BalanceResponse>(`/api/balance?month=${month}`)
   const meId = me?.id ?? null
   const [showAdd, setShowAdd] = useState(false)
   const [editAccount, setEditAccount] = useState<BankAccount | null>(null)
@@ -146,13 +147,56 @@ export default function AccountsPage() {
             <EmptyState icon="🏦" title="Aucun compte" description="Ajoutez RBC, Desjardins, etc." />
           ) : (
             <div className="space-y-5">
-              {ownerEntries.map(([ownerId, group]) => (
-                <AccountSection
-                  key={ownerId}
-                  title={ownerId === meId ? 'Mes comptes' : `Comptes de ${group.name}`}
-                  items={group.accounts}
-                />
-              ))}
+              {ownerEntries.map(([ownerId, group]) => {
+                // Totaux comptes de ce propriétaire
+                const accIncome   = group.accounts.reduce((s, a) => s + a.total_income, 0)
+                const accExpenses = group.accounts.reduce((s, a) => s + a.total_expenses, 0)
+                // Totaux réels depuis balance API pour ce propriétaire
+                const bSummary = balanceData?.summary.find(s => s.user_id === ownerId)
+                const realIncome   = bSummary?.income ?? 0
+                const realExpenses = bSummary?.total_expenses ?? 0
+                const unassignedInc = realIncome - accIncome
+                const unassignedExp = realExpenses - accExpenses
+                const hasUnassigned = Math.abs(unassignedInc) > 0.01 || Math.abs(unassignedExp) > 0.01
+
+                return (
+                  <div key={ownerId} className="space-y-3">
+                    <AccountSection
+                      title={ownerId === meId ? 'Mes comptes' : `Comptes de ${group.name}`}
+                      items={group.accounts}
+                    />
+                    {/* Sous-total */}
+                    <div className="bg-[#18181b]/60 rounded-2xl border border-[#3f3f46] px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#a1a1aa] font-medium">Sous-total comptes</span>
+                        <div className="flex gap-4">
+                          <span className="text-[#22c55e] font-semibold">+{formatCurrency(accIncome)}</span>
+                          <span className="text-[#ef4444] font-semibold">-{formatCurrency(accExpenses)}</span>
+                        </div>
+                      </div>
+                      {hasUnassigned && bSummary && (
+                        <div className="flex items-start gap-2 pt-1 border-t border-[#3f3f46]">
+                          <AlertCircle size={13} className="text-[#f59e0b] mt-0.5 shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-[11px] text-[#f59e0b] font-medium">Transactions sans compte</p>
+                            <p className="text-[10px] text-[#71717a] mt-0.5">
+                              Ces montants apparaissent dans le dashboard Balance mais ne sont rattachés à aucun compte.
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {Math.abs(unassignedInc) > 0.01 && (
+                              <p className="text-[11px] text-[#22c55e]">+{formatCurrency(unassignedInc)}</p>
+                            )}
+                            {Math.abs(unassignedExp) > 0.01 && (
+                              <p className="text-[11px] text-[#ef4444]">-{formatCurrency(unassignedExp)}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
               <AccountSection title="Comptes communs 💑" items={sharedAccounts} />
             </div>
           )}
