@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { Trash2, Search, Zap, ScanLine } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useFetch } from '@/hooks/useFetch'
 import { formatMonth, formatDate, formatCurrency, groupByDate } from '@/lib/utils'
@@ -26,10 +27,16 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: 'recurring', label: '🔄 Récurrentes' },
 ]
 
-export default function TransactionsPage() {
-  const [month, setMonth] = useState(() => formatMonth(new Date()))
+export default function TransactionsPageWrapper() {
+  return <Suspense><TransactionsPage /></Suspense>
+}
+
+function TransactionsPage() {
+  const searchParams = useSearchParams()
+  const [month, setMonth] = useState(() => searchParams.get('month') || formatMonth(new Date()))
   const [filter, setFilter] = useState<Filter>('all')
-  const [whoFilter, setWhoFilter] = useState<'couple' | string>('couple')
+  const [whoFilter, setWhoFilter] = useState<'couple' | string>(() => searchParams.get('user_id') || 'couple')
+  const [noAccountOnly] = useState(() => searchParams.get('no_account') === 'true')
   const [me, setMe] = useState<Profile | null>(null)
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
@@ -83,6 +90,7 @@ export default function TransactionsPage() {
   if (filter === 'recurring') params.is_recurring = 'true'
   if (whoFilter !== 'couple') params.user_id = whoFilter
   if (debouncedSearch) params.search = debouncedSearch
+  if (noAccountOnly) params.no_account = 'true'
 
   const { data: transactions, loading, refetch } = useFetch<Transaction[]>(
     `/api/transactions?${new URLSearchParams(params)}`
@@ -130,13 +138,30 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-[#fafafa] flex items-center gap-2">
           Transactions
-          <span className="flex items-center gap-1 text-[10px] font-normal text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded-full">
-            <Zap size={9} className="fill-current" />
-            Live
-          </span>
+          {!noAccountOnly && (
+            <span className="flex items-center gap-1 text-[10px] font-normal text-[#22c55e] bg-[#22c55e]/10 px-2 py-0.5 rounded-full">
+              <Zap size={9} className="fill-current" />
+              Live
+            </span>
+          )}
+          {noAccountOnly && (
+            <span className="text-[10px] font-normal text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-0.5 rounded-full">
+              Sans compte
+            </span>
+          )}
         </h1>
         <MonthPicker value={month} onChange={setMonth} />
       </div>
+
+      {/* Bannière mode "sans compte" */}
+      {noAccountOnly && (
+        <div className="flex items-center gap-2 mb-3 bg-[#f59e0b]/10 border border-[#f59e0b]/30 rounded-xl px-3 py-2.5">
+          <span className="text-[#f59e0b] text-xs flex-1">
+            Transactions sans compte bancaire — clique sur une transaction pour lui assigner un compte.
+          </span>
+          <Link href="/accounts" className="text-[10px] text-[#818cf8] shrink-0">← Retour</Link>
+        </div>
+      )}
 
       {/* Recherche */}
       <div className="relative mb-3">

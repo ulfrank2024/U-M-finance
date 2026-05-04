@@ -179,9 +179,12 @@ export default function AccountsPage() {
                           <AlertCircle size={13} className="text-[#f59e0b] mt-0.5 shrink-0" />
                           <div className="flex-1">
                             <p className="text-[11px] text-[#f59e0b] font-medium">Transactions sans compte</p>
-                            <p className="text-[10px] text-[#71717a] mt-0.5">
-                              Ces montants apparaissent dans le dashboard Balance mais ne sont rattachés à aucun compte.
-                            </p>
+                            <Link
+                              href={`/transactions?no_account=true&month=${month}&user_id=${ownerId}`}
+                              className="text-[10px] text-[#818cf8] underline"
+                            >
+                              Voir et corriger →
+                            </Link>
                           </div>
                           <div className="text-right shrink-0">
                             {Math.abs(unassignedInc) > 0.01 && (

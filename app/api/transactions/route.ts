@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   const userId          = searchParams.get('user_id')
   const search          = searchParams.get('search')
   const isRecurring     = searchParams.get('is_recurring')
+  const noAccount       = searchParams.get('no_account') // 'true' = sans bank_account_id
 
   let query = supabase
     .from('transactions')
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
   if (userId)         query = query.eq('user_id', userId)
   if (search)         query = query.ilike('description', `%${search}%`)
   if (isRecurring === 'true') query = query.eq('is_recurring', true)
+  if (noAccount === 'true')   query = query.is('bank_account_id', null)
 
   if (month) {
     const [year, m] = month.split('-').map(Number)
