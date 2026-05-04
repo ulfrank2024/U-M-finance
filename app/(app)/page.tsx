@@ -191,6 +191,10 @@ export default function DashboardPage() {
 
           {transfers.length > 0 && (
             <div className="bg-[#18181b] rounded-2xl border border-[#3f3f46] overflow-hidden">
+              <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                <p className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wide">Historique</p>
+                <Link href="/transfers" className="text-xs text-[#e879f9] font-medium">Voir tout →</Link>
+              </div>
               {transfers.slice(0, 5).map((t, i, arr) => {
                 const isSender = t.from_user === profile?.id
                 const other = isSender ? t.to_profile : t.from_profile
